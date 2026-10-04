@@ -11,6 +11,19 @@ Terminal formatting, ANSI colors, and text styling for the [Edva](https://github
 
 ## Usage
 
+### Point-free pipeline
+
+```dva
+#use io
+#use(import) @term
+
+"Success!" $> green $> bold $> io::out
+"Error: something failed" $> red $> bold $> io::out
+" Blue Banner " $> white $> bg_blue $> io::out
+```
+
+### Qualified calls
+
 ```dva
 #use io
 #use @term
