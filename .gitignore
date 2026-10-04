@@ -1,0 +1,6 @@
+*.ll
+*.o
+*.out
+bin/
+tests/main_test
+.edva/

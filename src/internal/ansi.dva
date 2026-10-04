@@ -1,0 +1,24 @@
+// src/internal/ansi.dva — Low-level ANSI escape code generator
+// Package-private internal module for 'term'
+
+#public
+   csi: String => String
+   csi = code =>
+      b = {?code + 4}
+      b += 27
+      b += '['
+      b += code
+      b += 'm'
+      +b
+
+   wrap: String, String => String
+   wrap = code, s =>
+      b = {?code + ?s + 12}
+      b += 27
+      b += '['
+      b += code
+      b += 'm'
+      b += s
+      b += 27
+      b += "[0m"
+      +b

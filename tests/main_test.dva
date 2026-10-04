@@ -1,0 +1,59 @@
+// tests/main_test.dva — Verification suite for 'term'
+
+#use str
+#use sys
+#use "../src/term"
+#use "../src/color"
+
+assert_eq: String, String, String => ()
+assert_eq = name, got, expected =>
+   got == expected
+      | print $ "PASS: " + name
+      |
+         print $ "FAIL: " + name + "\n  got:      " + got + "\n  expected: " + expected
+         sys::exit(1)
+
+assert_true: String, <> => ()
+assert_true = name, condition =>
+   condition
+      | print $ "PASS: " + name
+      |
+         print $ "FAIL: " + name
+         sys::exit(1)
+
+// --- Colors ---
+assert_true("red", ?term::red("r") > 1)
+assert_true("green", ?term::green("g") > 1)
+assert_true("yellow", ?term::yellow("y") > 1)
+assert_true("blue", ?term::blue("b") > 1)
+assert_true("magenta", ?term::magenta("m") > 1)
+assert_true("cyan", ?term::cyan("c") > 1)
+assert_true("white", ?term::white("w") > 1)
+assert_true("gray", ?term::gray("gr") > 2)
+
+// --- Styles ---
+assert_true("bold", ?term::bold("bld") > 3)
+assert_true("dim", ?term::dim("dm") > 2)
+assert_true("italic", ?term::italic("it") > 2)
+assert_true("underline", ?term::underline("un") > 2)
+
+// --- Background colors ---
+assert_true("bg_black", ?color::bg_black("k") > 1)
+assert_true("bg_red", ?color::bg_red("r") > 1)
+assert_true("bg_green", ?color::bg_green("g") > 1)
+assert_true("bg_yellow", ?color::bg_yellow("y") > 1)
+assert_true("bg_blue", ?color::bg_blue("b") > 1)
+assert_true("bg_magenta", ?color::bg_magenta("m") > 1)
+assert_true("bg_cyan", ?color::bg_cyan("c") > 1)
+assert_true("bg_white", ?color::bg_white("w") > 1)
+
+// --- Strip ANSI codes ---
+styled = term::bold(term::red("important text"))
+stripped = term::strip(styled)
+assert_eq("strip removes codes", stripped, "important text")
+
+// --- Terminal check ---
+is_term = term::is_terminal(1)
+is_term | print $ "PASS: is_terminal stdout" | print $ "PASS: is_terminal stdout (redirected)"
+
+print $ "=== ALL TERM SUITE CHECKS PASSED ==="

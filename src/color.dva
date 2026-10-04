@@ -1,0 +1,58 @@
+// src/color.dva — ANSI Foreground and Background Colors
+// Module of package 'term'
+
+#use internal/ansi
+
+#public
+   // Foreground colors
+   black: String => String
+   black = s => ansi::wrap("30", s)
+
+   red: String => String
+   red = s => ansi::wrap("31", s)
+
+   green: String => String
+   green = s => ansi::wrap("32", s)
+
+   yellow: String => String
+   yellow = s => ansi::wrap("33", s)
+
+   blue: String => String
+   blue = s => ansi::wrap("34", s)
+
+   magenta: String => String
+   magenta = s => ansi::wrap("35", s)
+
+   cyan: String => String
+   cyan = s => ansi::wrap("36", s)
+
+   white: String => String
+   white = s => ansi::wrap("37", s)
+
+   gray: String => String
+   gray = s => ansi::wrap("90", s)
+
+   // Background colors
+   bg_black: String => String
+   bg_black = s => ansi::wrap("40", s)
+
+   bg_red: String => String
+   bg_red = s => ansi::wrap("41", s)
+
+   bg_green: String => String
+   bg_green = s => ansi::wrap("42", s)
+
+   bg_yellow: String => String
+   bg_yellow = s => ansi::wrap("43", s)
+
+   bg_blue: String => String
+   bg_blue = s => ansi::wrap("44", s)
+
+   bg_magenta: String => String
+   bg_magenta = s => ansi::wrap("45", s)
+
+   bg_cyan: String => String
+   bg_cyan = s => ansi::wrap("46", s)
+
+   bg_white: String => String
+   bg_white = s => ansi::wrap("47", s)

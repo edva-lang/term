@@ -1,0 +1,70 @@
+// src/term.dva — Terminal styling and ANSI formatting
+// Root module for package 'term'
+
+#use color
+#use internal/ansi
+
+#foreign "c"
+   isatty: (fd: Int) => Int
+
+#public
+   // High-level color helpers
+   black: String => String
+   black = s => color::black(s)
+
+   red: String => String
+   red = s => color::red(s)
+
+   green: String => String
+   green = s => color::green(s)
+
+   yellow: String => String
+   yellow = s => color::yellow(s)
+
+   blue: String => String
+   blue = s => color::blue(s)
+
+   magenta: String => String
+   magenta = s => color::magenta(s)
+
+   cyan: String => String
+   cyan = s => color::cyan(s)
+
+   white: String => String
+   white = s => color::white(s)
+
+   gray: String => String
+   gray = s => color::gray(s)
+
+   // Text styles
+   bold: String => String
+   bold = s => ansi::wrap("1", s)
+
+   dim: String => String
+   dim = s => ansi::wrap("2", s)
+
+   italic: String => String
+   italic = s => ansi::wrap("3", s)
+
+   underline: String => String
+   underline = s => ansi::wrap("4", s)
+
+   // Terminal check (1 = stdout, 2 = stderr)
+   is_terminal: Int => <>
+   is_terminal = fd => isatty(fd) != 0
+
+   // Strip ANSI escape codes from string
+   strip: String => String
+   strip = s =>
+      len = ?s
+      b = {len}
+      in_esc' = <->
+      s @ c, i =>
+         in_esc'
+            |
+               c ['m'] in_esc' = <->
+            |
+               c == 27
+                  | in_esc' = <+>
+                  | b += c
+      +b
