@@ -36,6 +36,8 @@ assert_true("bold", ?term::bold("bld") > 3)
 assert_true("dim", ?term::dim("dm") > 2)
 assert_true("italic", ?term::italic("it") > 2)
 assert_true("underline", ?term::underline("un") > 2)
+assert_true("reverse", ?term::reverse("rev") > 3)
+assert_true("strikethrough", ?term::strikethrough("st") > 2)
 
 // --- Background colors ---
 assert_true("bg_black", ?color::bg_black("k") > 1)

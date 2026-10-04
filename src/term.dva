@@ -49,6 +49,12 @@
    underline: String => String
    underline = s => ansi::wrap("4", s)
 
+   reverse: String => String
+   reverse = s => ansi::wrap("7", s)
+
+   strikethrough: String => String
+   strikethrough = s => ansi::wrap("9", s)
+
    // Terminal check (1 = stdout, 2 = stderr)
    is_terminal: Int => <>
    is_terminal = fd => isatty(fd) != 0
