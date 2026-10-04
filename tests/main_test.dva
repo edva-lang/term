@@ -1,5 +1,6 @@
 // tests/main_test.dva — Verification suite for 'term'
 
+#use io
 #use str
 #use sys
 #use "../src/term"
@@ -8,17 +9,17 @@
 assert_eq: String, String, String => ()
 assert_eq = name, got, expected =>
    got == expected
-      | print $ "PASS: " + name
+      | io::out("PASS: " + name)
       |
-         print $ "FAIL: " + name + "\n  got:      " + got + "\n  expected: " + expected
+         io::err("FAIL: " + name + "\n  got:      " + got + "\n  expected: " + expected)
          sys::exit(1)
 
 assert_true: String, <> => ()
 assert_true = name, condition =>
    condition
-      | print $ "PASS: " + name
+      | io::out("PASS: " + name)
       |
-         print $ "FAIL: " + name
+         io::err("FAIL: " + name)
          sys::exit(1)
 
 // --- Colors ---
@@ -56,6 +57,6 @@ assert_eq("strip removes codes", stripped, "important text")
 
 // --- Terminal check ---
 is_term = term::is_terminal(1)
-is_term | print $ "PASS: is_terminal stdout" | print $ "PASS: is_terminal stdout (redirected)"
+is_term | io::out("PASS: is_terminal stdout") | io::out("PASS: is_terminal stdout (redirected)")
 
-print $ "=== ALL TERM SUITE CHECKS PASSED ==="
+io::out("=== ALL TERM SUITE CHECKS PASSED ===")

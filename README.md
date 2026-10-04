@@ -12,16 +12,17 @@ Terminal formatting, ANSI colors, and text styling for the [Edva](https://github
 ## Usage
 
 ```dva
+#use io
 #use @term
 #use @term/color
 
-print $ term::green("Success!")
-print $ term::bold(term::red("Error: something failed"))
+io::out $ term::green("Success!")
+io::out $ term::bold(term::red("Error: something failed"))
 
 // Check if stdout is an interactive terminal
 term::is_terminal(1)
-   | print $ "Interactive TTY"
-   | print $ "Redirected output"
+   | io::out("Interactive TTY")
+   | io::out("Redirected output")
 ```
 
 ## License
