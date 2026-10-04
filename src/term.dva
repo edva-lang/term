@@ -36,6 +36,31 @@
    gray: String => String
    gray = s => color::gray(s)
 
+   // Background colors
+   bg_black: String => String
+   bg_black = s => color::bg_black(s)
+
+   bg_red: String => String
+   bg_red = s => color::bg_red(s)
+
+   bg_green: String => String
+   bg_green = s => color::bg_green(s)
+
+   bg_yellow: String => String
+   bg_yellow = s => color::bg_yellow(s)
+
+   bg_blue: String => String
+   bg_blue = s => color::bg_blue(s)
+
+   bg_magenta: String => String
+   bg_magenta = s => color::bg_magenta(s)
+
+   bg_cyan: String => String
+   bg_cyan = s => color::bg_cyan(s)
+
+   bg_white: String => String
+   bg_white = s => color::bg_white(s)
+
    // Text styles
    bold: String => String
    bold = s => ansi::wrap("1", s)
