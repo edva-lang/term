@@ -5,20 +5,11 @@
    csi: String => String
    csi = code =>
       b = {?code + 4}
-      b += 27
-      b += '['
-      b += code
-      b += 'm'
+      b += (27, '[', code, 'm')
       +b
 
    wrap: String, String => String
    wrap = code, s =>
       b = {?code + ?s + 12}
-      b += 27
-      b += '['
-      b += code
-      b += 'm'
-      b += s
-      b += 27
-      b += "[0m"
+      b += (27, '[', code, 'm', s, 27, '[', '0', 'm')
       +b
