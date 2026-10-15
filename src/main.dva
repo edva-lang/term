@@ -7,12 +7,84 @@
 #foreign "c"
    usleep: (usec: Int) => Int
 
+rainbow_rgb: Int, Int => Int
+rainbow_rgb = i, total =>
+   tot = total < 1 | 1 | total
+   seg = (i * 6) / tot
+   f = ((i * 6) % tot) * 255 / tot
+   seg
+      [0] term::rgb(255, f, 0)
+      [1] term::rgb(255 - f, 255, 0)
+      [2] term::rgb(0, 255, f)
+      [3] term::rgb(0, 255 - f, 255)
+      [4] term::rgb(f, 0, 255)
+      | term::rgb(255, 0, 255 - f)
+
+sunset_rgb: Int, Int => Int
+sunset_rgb = i, total =>
+   tot = total < 1 | 1 | total
+   seg = (i * 3) / tot
+   f = ((i * 3) % tot) * 255 / tot
+   seg
+      [0] term::rgb(120 + (135 * f) / 255, (30 * f) / 255, 180 - (100 * f) / 255)
+      [1] term::rgb(255, 30 + (110 * f) / 255, 80 - (80 * f) / 255)
+      | term::rgb(255, 140 + (90 * f) / 255, 80)
+
+ocean_rgb: Int, Int => Int
+ocean_rgb = i, total =>
+   tot = total < 1 | 1 | total
+   seg = (i * 2) / tot
+   f = ((i * 2) % tot) * 255 / tot
+   seg
+      [0] term::rgb(0, f, 255)
+      | term::rgb((120 * f) / 255, 255, 255 - (100 * f) / 255)
+
+ansi_color: Int => Int
+ansi_color = idx =>
+   idx
+      [0]  0x000000
+      [1]  0xcd3131
+      [2]  0x0dbc79
+      [3]  0xe5e510
+      [4]  0x2472c8
+      [5]  0xbc3fbc
+      [6]  0x11a8cd
+      [7]  0xe5e5e5
+      [8]  0x666666
+      [9]  0xf14c4c
+      [10] 0x23d18b
+      [11] 0xf5f543
+      [12] 0x3b8eea
+      [13] 0xd670d6
+      [14] 0x29b8db
+      | 0xffffff
+
+ansi_name: Int => String
+ansi_name = idx =>
+   idx
+      [0]  "Blk"
+      [1]  "Red"
+      [2]  "Grn"
+      [3]  "Yel"
+      [4]  "Blu"
+      [5]  "Mag"
+      [6]  "Cya"
+      [7]  "Whi"
+      [8]  "BBlk"
+      [9]  "BRed"
+      [10] "BGrn"
+      [11] "BYel"
+      [12] "BBlu"
+      [13] "BMag"
+      [14] "BCya"
+      | "BWhi"
+
 t = term::init!
 term::enable_raw(t)
 term::enable_mouse(t)
 
 cursor_r' = 6
-cursor_c' = 10
+cursor_c' = 8
 mouse_x' = 0
 mouse_y' = 0
 mouse_msg' = ++"Mouse: None"
@@ -25,23 +97,67 @@ draw_ui = tm, cur_r, cur_c, stat_msg, m_msg =>
    c = tm.cols
 
    // Outer window box with rounded corners
-   term::draw_titled_box(tm, 0, 0, r, c, term::BORDER_ROUNDED, "term v0.1.0 — Demo", 0x89b4fa, -1, 0xf9e2af)
+   term::draw_titled_box(tm, 0, 0, r, c, term::BORDER_ROUNDED, "term v0.1.0 — TrueColor & TUI Showcase", 0x89b4fa, -1, 0xf9e2af)
 
-   // Status bar at bottom
-   term::put_str(tm, r - 2, 2, stat_msg, 0xa6adc8, -1, 0)
-   term::put_str(tm, r - 3, 2, m_msg, 0x94e2d5, -1, 0)
-
-   // Coordinates display
+   // Header row
    coord = "Cursor: (" + str::from_int(cur_r) + ", " + str::from_int(cur_c) + ") | Screen: " + str::from_int(r) + "x" + str::from_int(c)
    term::put_str(tm, 2, 3, coord, 0xfab387, -1, 0)
+   c > 50 | term::put_str(tm, 2, c - 34, "24-bit TrueColor Diff Engine", 0xa6e3a1, -1, term::ATTR_BOLD)
 
-   // Inner sample box
-   term::draw_box(tm, 4, 3, 10, 30, term::BORDER_SINGLE, 0x585b70, -1)
-   term::put_str(tm, 5, 5, "Canvas Area", 0xcdd6f4, -1, term::ATTR_UNDERLINE)
-   term::put_str(tm, 7, 5, "Click inside or move *", 0x6c7086, -1, 0)
+   // Left Panel: Interactive Canvas (rows 4..13, width 26)
+   term::draw_titled_box(tm, 4, 3, 10, 26, term::BORDER_SINGLE, "Canvas", 0x585b70, -1, 0xcdd6f4)
+   term::put_str(tm, 5, 5, "Arrows/hjkl : Move *", 0xa6adc8, -1, 0)
+   term::put_str(tm, 6, 5, "Mouse Click : Jump", 0xa6adc8, -1, 0)
+   term::put_str(tm, 7, 5, "Scroll Wheel: Up/Dn", 0xa6adc8, -1, 0)
+   term::put_str(tm, 9, 5, "Press 'q'   : Exit", 0xf38ba8, -1, term::ATTR_BOLD)
 
-   // Draw active cursor marker
-   term::set_cell(tm, cur_r, cur_c, '*', 0xf38ba8, -1, term::ATTR_BOLD)
+   // Active cursor marker inside canvas
+   term::set_cell(tm, cur_r, cur_c, '*', 0xf38ba8, 0x313244, term::ATTR_BOLD)
+
+   // Right Panel: 24-bit TrueColor spectrum and gradients (rows 4..13)
+   c > 33 |
+      rp_w = c - 34
+      term::draw_titled_box(tm, 4, 31, 10, rp_w, term::BORDER_SINGLE, "TrueColor Gradients", 0x585b70, -1, 0xcdd6f4)
+      spec_w = rp_w - 4
+      spec_w > 8 |
+         term::put_str(tm, 5, 33, "Continuous RGB Spectrum:", 0xcba6f7, -1, 0)
+         spec_w @ x =>
+            col_rgb = rainbow_rgb(x, spec_w)
+            term::set_cell(tm, 6, 33 + x, 0x2588, col_rgb, -1, 0)
+
+         term::put_str(tm, 7, 33, "Sunset & Ocean Gradients:", 0xfab387, -1, 0)
+         half = spec_w / 2
+         half @ x =>
+            term::set_cell(tm, 8, 33 + x, 0x2588, sunset_rgb(x, half), -1, 0)
+            term::set_cell(tm, 8, 33 + half + x, 0x2588, ocean_rgb(x, half), -1, 0)
+
+         term::put_str(tm, 9, 33, "Theme Swatches:", 0x89dceb, -1, 0)
+         term::put_str(tm, 10, 33, "■ Red  ■ Peach  ■ Yellow  ■ Green  ■ Sky  ■ Lavender", 0xf38ba8, -1, 0)
+         term::put_str(tm, 11, 33, "■ Pink ■ Mauve  ■ Teal    ■ Blue   ■ Rosewater", 0xf5c2e7, -1, 0)
+
+   // Bottom Panel: Standard 16 ANSI Palette and Text Attributes (rows 15..r-4)
+   r > 19 |
+      term::put_str(tm, 14, 3, "Standard 16 ANSI Palette:", 0xcdd6f4, -1, term::ATTR_BOLD)
+      8 @ a =>
+         col_x = 3 + a * 9
+         col_x + 8 < c |
+            term::put_str(tm, 15, col_x, "██", ansi_color(a), -1, 0)
+            term::put_str(tm, 15, col_x + 3, ansi_name(a), ansi_color(a), -1, 0)
+            term::put_str(tm, 16, col_x, "██", ansi_color(a + 8), -1, 0)
+            term::put_str(tm, 16, col_x + 3, ansi_name(a + 8), ansi_color(a + 8), -1, 0)
+
+   r > 21 |
+      term::put_str(tm, 18, 3, "Text Attributes:", 0xa6adc8, -1, 0)
+      term::put_str(tm, 18, 20, "Normal", 0xcdd6f4, -1, term::ATTR_NONE)
+      term::put_str(tm, 18, 28, "Bold", 0xf38ba8, -1, term::ATTR_BOLD)
+      term::put_str(tm, 18, 34, "Dim", 0x6c7086, -1, term::ATTR_DIM)
+      term::put_str(tm, 18, 39, "Italic", 0xfab387, -1, term::ATTR_ITALIC)
+      term::put_str(tm, 18, 47, "Underline", 0xa6e3a1, -1, term::ATTR_UNDERLINE)
+      term::put_str(tm, 18, 58, " Reverse ", 0x1e1e2e, 0x89b4fa, term::ATTR_NONE)
+
+   // Status bar at bottom
+   term::put_str(tm, r - 3, 2, m_msg, 0x94e2d5, -1, 0)
+   term::put_str(tm, r - 2, 2, stat_msg, 0xa6adc8, -1, 0)
 
    term::render(tm)
 
@@ -53,7 +169,7 @@ draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg')
       ev.code == term::KEY_CHAR |
          ev.ch == 'q' | -->
          ev.ch == 'h' && cursor_c' > 4 | cursor_c' = cursor_c' - 1
-         ev.ch == 'l' && cursor_c' < 31 | cursor_c' = cursor_c' + 1
+         ev.ch == 'l' && cursor_c' < 27 | cursor_c' = cursor_c' + 1
          ev.ch == 'k' && cursor_r' > 5 | cursor_r' = cursor_r' - 1
          ev.ch == 'j' && cursor_r' < 12 | cursor_r' = cursor_r' + 1
          draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg')
@@ -66,7 +182,7 @@ draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg')
       ev.code == term::KEY_LEFT && cursor_c' > 4 |
          cursor_c' = cursor_c' - 1
          draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg')
-      ev.code == term::KEY_RIGHT && cursor_c' < 31 |
+      ev.code == term::KEY_RIGHT && cursor_c' < 27 |
          cursor_c' = cursor_c' + 1
          draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg')
       ev.code == term::KEY_ESC | -->
@@ -77,7 +193,7 @@ draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg')
       ev.mouse_act == term::MOUSE_PRESS |
          mouse_msg' = ++("Mouse Pressed: Button " + str::from_int(ev.mouse_btn) + " at (" + str::from_int(ev.x) + ", " + str::from_int(ev.y) + ")")
          // If clicked inside canvas, move cursor there
-         ev.x !< 4 && ev.x !> 31 && ev.y !< 5 && ev.y !> 12 |
+         ev.x !< 4 && ev.x !> 27 && ev.y !< 5 && ev.y !> 12 |
             cursor_c' = ev.x - 1
             cursor_r' = ev.y - 1
       ev.mouse_act == term::MOUSE_RELEASE |
