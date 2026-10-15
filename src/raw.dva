@@ -34,17 +34,17 @@
             (r, c)
 
    // Enable raw mode on stdin
-   enable_raw_termios: Addr, Addr => Int
+   enable_raw_termios: Addr, Addr => <>
    enable_raw_termios = orig, raw =>
-      libc::tcgetattr(0, orig) != 0 | --| -1
+      libc::tcgetattr(0, orig) != 0 |->
       libc::memcpy(raw, orig, 64)
       libc::cfmakeraw(raw)
-      libc::tcsetattr(0, 0, raw)
+      libc::tcsetattr(0, 0, raw) == 0
 
    // Restore canonical mode on stdin
-   disable_raw_termios: Addr => Int
+   disable_raw_termios: Addr => <>
    disable_raw_termios = orig =>
-      libc::tcsetattr(0, 2, orig)
+      libc::tcsetattr(0, 2, orig) == 0
 
    // Alternate screen buffer
    enter_alt_screen: () => ()

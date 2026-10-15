@@ -2,8 +2,8 @@
 
 #use libc
 #use str
-#use style
-#use raw
+#use "style"
+#use "raw"
 
 #public
    CELL_SIZE = 32

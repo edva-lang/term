@@ -90,6 +90,28 @@
    rgb: Int, Int, Int => Int
    rgb = r, g, b => style::rgb(r, g, b)
 
+   // Event constructors
+   ev_none: () => key::Event
+   ev_none = !=> key::ev_none!
+
+   ev_key: Int, Int, Int => key::Event
+   ev_key = code, ch, mods => key::ev_key(code, ch, mods)
+
+   ev_char: Int => key::Event
+   ev_char = c => key::ev_char(c)
+
+   ev_code: Int => key::Event
+   ev_code = code => key::ev_code(code)
+
+   ev_ctrl: Int => key::Event
+   ev_ctrl = c => key::ev_ctrl(c)
+
+   ev_mouse: Int, Int, Int, Int, Int => key::Event
+   ev_mouse = act, btn, mods, x, y => key::ev_mouse(act, btn, mods, x, y)
+
+   ev_resize: Int, Int => key::Event
+   ev_resize = rows, cols => key::ev_resize(rows, cols)
+
    // Types
    #type Event key::Event
    #type Grid  grid::Grid
@@ -98,8 +120,8 @@
    #type Term (
       orig_termios: Addr,
       raw_termios: Addr,
-      is_raw: Int,
-      is_mouse: Int,
+      is_raw: <>,
+      is_mouse: <>,
       rows: Int,
       cols: Int,
       front: grid::Grid,
@@ -118,13 +140,13 @@
       c = sz(1)
       front = grid::grid_new(r, c)
       back = grid::grid_new(r, c)
-      Term((orig_t, raw_t, 0, 0, r, c, front, back))
+      Term((orig_t, raw_t, <->, <->, r, c, front, back))
 
    // Shutdown and clean up resources
    shutdown: Term => ()
    shutdown = t =>
-      t.is_mouse != 0 | raw::disable_mouse!
-      t.is_raw != 0   | disable_raw(t)
+      t.is_mouse | raw::disable_mouse!
+      t.is_raw   | disable_raw(t)
       grid::grid_free(t.front)
       grid::grid_free(t.back)
       libc::free(t.orig_termios)
@@ -133,33 +155,33 @@
    // Enable raw mode and alternate screen
    enable_raw: Term => ()
    enable_raw = t =>
-      raw::enable_raw_termios(t.orig_termios, t.raw_termios) != 0 | --|
-      t.is_raw = 1
+      !raw::enable_raw_termios(t.orig_termios, t.raw_termios) | --|
+      t.is_raw = <+>
       raw::enter_alt_screen!
 
    // Disable raw mode and restore screen
    disable_raw: Term => ()
    disable_raw = t =>
-      t.is_mouse != 0 |
+      t.is_mouse |
          raw::disable_mouse!
-         t.is_mouse = 0
+         t.is_mouse = <->
       raw::exit_alt_screen!
       raw::disable_raw_termios(t.orig_termios)
-      t.is_raw = 0
+      t.is_raw = <->
 
    // Toggle mouse event tracking
    enable_mouse: Term => ()
    enable_mouse = t =>
       raw::enable_mouse!
-      t.is_mouse = 1
+      t.is_mouse = <+>
 
    disable_mouse: Term => ()
    disable_mouse = t =>
       raw::disable_mouse!
-      t.is_mouse = 0
+      t.is_mouse = <->
 
    // Check and resize grid buffers if window dimensions changed
-   refresh_size: Term => Int
+   refresh_size: Term => <>
    refresh_size = t =>
       sz = raw::get_size!
       new_r = sz(0)
@@ -173,13 +195,13 @@
             t.rows = new_r
             t.cols = new_c
             raw::clear_screen!
-            1
-         | 0
+            <+>
+         | <->
 
    // Poll event with window resize detection
    poll_event: Term, Int => key::Event
    poll_event = t, timeout_ms =>
-      refresh_size(t) != 0
+      refresh_size(t)
          | key::ev_resize(t.rows, t.cols)
          | input::poll_event(timeout_ms)
 

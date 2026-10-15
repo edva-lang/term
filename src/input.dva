@@ -2,11 +2,11 @@
 
 #use libc
 #use str
-#use key
+#use "key"
 
 #public
    // Check if input is available on stdin with timeout (ms)
-   poll_in: Int => Int
+   poll_in: Int => <>
    poll_in = timeout_ms =>
       pfd = libc::malloc(8)
       @[pfd] = i32(0)           // fd 0 (stdin)
@@ -15,12 +15,12 @@
       res = libc::poll(pfd, 1, timeout_ms)
       ready = res > 0 && (Int(@[pfd + 6 i16]) .&. 1) != 0
       libc::free(pfd)
-      ready | 1 | 0
+      ready
 
    // Read 1 byte non-blocking if available
    read_byte_opt: Int => < Int | >
    read_byte_opt = timeout_ms =>
-      poll_in(timeout_ms) == 0 | --| <-->
+      !poll_in(timeout_ms) | --| <-->
       b = libc::malloc(8)
       n = libc::read(0, b, 1)
       res' = n > 0 | <+ Int(@[b u8]) +> | <-->
