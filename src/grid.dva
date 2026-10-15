@@ -196,7 +196,6 @@
       cur_r' = -1
       cur_c' = -1
 
-      e = raw::esc!
       out = {8192}
 
       rows @ r =>
@@ -220,45 +219,45 @@
                   // Only move cursor if not already at (r, c)
                   r != cur_r' || c != cur_c'
                      |
-                        out += e + "[" + str::from_int(r + 1) + ";" + str::from_int(c + 1) + "H"
+                        out += "\e[" + str::from_int(r + 1) + ";" + str::from_int(c + 1) + "H"
                         cur_r' = r
                         cur_c' = c
 
                   // Update attributes if changed
                   b_at != cur_attr'
                      |
-                        out += e + "[0m" // reset
+                        out += "\e[0m" // reset
                         cur_fg' = -2
                         cur_bg' = -2
-                        (b_at .&. style::ATTR_BOLD) != 0      | out += e + "[1m"
-                        (b_at .&. style::ATTR_DIM) != 0       | out += e + "[2m"
-                        (b_at .&. style::ATTR_ITALIC) != 0    | out += e + "[3m"
-                        (b_at .&. style::ATTR_UNDERLINE) != 0 | out += e + "[4m"
-                        (b_at .&. style::ATTR_REVERSE) != 0   | out += e + "[7m"
+                        (b_at .&. style::ATTR_BOLD) != 0      | out += "\e[1m"
+                        (b_at .&. style::ATTR_DIM) != 0       | out += "\e[2m"
+                        (b_at .&. style::ATTR_ITALIC) != 0    | out += "\e[3m"
+                        (b_at .&. style::ATTR_UNDERLINE) != 0 | out += "\e[4m"
+                        (b_at .&. style::ATTR_REVERSE) != 0   | out += "\e[7m"
                         cur_attr' = b_at
 
                   // Update FG color if changed
                   b_fg != cur_fg'
                      |
                         b_fg == -1
-                           | out += e + "[39m"
+                           | out += "\e[39m"
                            |
                               red = style::red(b_fg)
                               green = style::green(b_fg)
                               blue = style::blue(b_fg)
-                              out += e + "[38;2;" + str::from_int(red) + ";" + str::from_int(green) + ";" + str::from_int(blue) + "m"
+                              out += "\e[38;2;" + str::from_int(red) + ";" + str::from_int(green) + ";" + str::from_int(blue) + "m"
                         cur_fg' = b_fg
 
                   // Update BG color if changed
                   b_bg != cur_bg'
                      |
                         b_bg == -1
-                           | out += e + "[49m"
+                           | out += "\e[49m"
                            |
                               red = style::red(b_bg)
                               green = style::green(b_bg)
                               blue = style::blue(b_bg)
-                              out += e + "[48;2;" + str::from_int(red) + ";" + str::from_int(green) + ";" + str::from_int(blue) + "m"
+                              out += "\e[48;2;" + str::from_int(red) + ";" + str::from_int(green) + ";" + str::from_int(blue) + "m"
                         cur_bg' = b_bg
 
                   // Emit character (multibyte UTF-8 aware)

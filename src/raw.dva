@@ -8,8 +8,9 @@
 
 #public
    // Escape character (ASCII 27)
+   ESC = "\e"
    esc: () => String
-   esc = !=> str::from_byte(27)
+   esc = !=> "\e"
 
    // Write string directly to stdout
    write_raw: String => ()
@@ -49,55 +50,45 @@
    // Alternate screen buffer
    enter_alt_screen: () => ()
    enter_alt_screen = !=>
-      e = esc!
-      write_raw(e + "[?1049h" + e + "[?25l") // enter alt screen, hide cursor
+      write_raw("\e[?1049h\e[?25l") // enter alt screen, hide cursor
 
    exit_alt_screen: () => ()
    exit_alt_screen = !=>
-      e = esc!
-      write_raw(e + "[?25h" + e + "[?1049l") // show cursor, exit alt screen
+      write_raw("\e[?25h\e[?1049l") // show cursor, exit alt screen
 
    // Cursor visibility
    hide_cursor: () => ()
    hide_cursor = !=>
-      e = esc!
-      write_raw(e + "[?25l")
+      write_raw("\e[?25l")
 
    show_cursor: () => ()
    show_cursor = !=>
-      e = esc!
-      write_raw(e + "[?25h")
+      write_raw("\e[?25h")
 
    // Clear screen
    clear_screen: () => ()
    clear_screen = !=>
-      e = esc!
-      write_raw(e + "[2J" + e + "[H")
+      write_raw("\e[2J\e[H")
 
    // Move cursor to (row, col) (1-indexed)
    move_cursor: Int, Int => ()
    move_cursor = r, c =>
-      e = esc!
-      write_raw(e + "[" + str::from_int(r) + ";" + str::from_int(c) + "H")
+      write_raw("\e[" + str::from_int(r) + ";" + str::from_int(c) + "H")
 
    // Mouse tracking (SGR 1006 extended mode + button/drag tracking 1000/1002)
    enable_mouse: () => ()
    enable_mouse = !=>
-      e = esc!
-      write_raw(e + "[?1000h" + e + "[?1002h" + e + "[?1006h")
+      write_raw("\e[?1000h\e[?1002h\e[?1006h")
 
    disable_mouse: () => ()
    disable_mouse = !=>
-      e = esc!
-      write_raw(e + "[?1006l" + e + "[?1002l" + e + "[?1000l")
+      write_raw("\e[?1006l\e[?1002l\e[?1000l")
 
    // Bracketed paste mode
    enable_bracketed_paste: () => ()
    enable_bracketed_paste = !=>
-      e = esc!
-      write_raw(e + "[?2004h")
+      write_raw("\e[?2004h")
 
    disable_bracketed_paste: () => ()
    disable_bracketed_paste = !=>
-      e = esc!
-      write_raw(e + "[?2004l")
+      write_raw("\e[?2004l")

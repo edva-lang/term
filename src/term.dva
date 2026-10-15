@@ -90,6 +90,9 @@
    rgb: Int, Int, Int => Int
    rgb = r, g, b => style::rgb(r, g, b)
 
+   // Escape string constant
+   ESC = raw::ESC
+
    // Event constructors
    ev_none: () => key::Event
    ev_none = !=> key::ev_none!
