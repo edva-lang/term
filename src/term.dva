@@ -138,8 +138,8 @@
       sz = raw::get_size!
       r = sz(0)
       c = sz(1)
-      front = grid::grid_new(r, c)
-      back = grid::grid_new(r, c)
+      front = grid::new(r, c)
+      back = grid::new(r, c)
       Term((&orig_t, &raw_t, <->, <->, r, c, front, back))
 
    // Shutdown and clean up resources
@@ -147,8 +147,8 @@
    shutdown = t =>
       t.is_mouse | raw::disable_mouse!
       t.is_raw   | disable_raw(t)
-      grid::grid_free(t.front)
-      grid::grid_free(t.back)
+      grid::free(t.front)
+      grid::free(t.back)
 
    // Enable raw mode and alternate screen
    enable_raw: Term => ()
@@ -186,10 +186,10 @@
       new_c = sz(1)
       new_r != t.rows || new_c != t.cols
          |
-            grid::grid_free(t.front)
-            grid::grid_free(t.back)
-            t.front = grid::grid_new(new_r, new_c)
-            t.back = grid::grid_new(new_r, new_c)
+            grid::free(t.front)
+            grid::free(t.back)
+            t.front = grid::new(new_r, new_c)
+            t.back = grid::new(new_r, new_c)
             t.rows = new_r
             t.cols = new_c
             raw::clear_screen!
@@ -211,44 +211,44 @@
    // Clear back buffer
    clear: Term => ()
    clear = t =>
-      grid::grid_clear(t.back)
+      grid::clear(t.back)
 
    // Drawing delegates for convenience
    set_cell: Term, Int, Int, Int, Int, Int, Int => ()
    set_cell = t, r, c, ch, fg, bg, attr =>
-      grid::grid_set(t.back, r, c, ch, fg, bg, attr)
+      grid::set(t.back, r, c, ch, fg, bg, attr)
 
    put_str: Term, Int, Int, String, Int, Int, Int => ()
    put_str = t, r, c, text, fg, bg, attr =>
-      grid::grid_put_str(t.back, r, c, text, fg, bg, attr)
+      grid::put_str(t.back, r, c, text, fg, bg, attr)
 
    put_str_clipped: Term, Int, Int, String, Int, Int, Int, Int => ()
    put_str_clipped = t, r, c, text, max_w, fg, bg, attr =>
-      grid::grid_put_str_clipped(t.back, r, c, text, max_w, fg, bg, attr)
+      grid::put_str_clipped(t.back, r, c, text, max_w, fg, bg, attr)
 
    put_str_aligned: Term, Int, Int, String, Int, Int, Int, Int, Int => ()
    put_str_aligned = t, r, c, text, width, align, fg, bg, attr =>
-      grid::grid_put_str_aligned(t.back, r, c, text, width, align, fg, bg, attr)
+      grid::put_str_aligned(t.back, r, c, text, width, align, fg, bg, attr)
 
    fill_rect: Term, Int, Int, Int, Int, Int, Int, Int, Int => ()
    fill_rect = t, r, c, h, w, ch, fg, bg, attr =>
-      grid::grid_fill_rect(t.back, r, c, h, w, ch, fg, bg, attr)
+      grid::fill_rect(t.back, r, c, h, w, ch, fg, bg, attr)
 
    draw_box: Term, Int, Int, Int, Int, Int, Int, Int => ()
    draw_box = t, r, c, h, w, style, fg, bg =>
-      grid::grid_draw_box(t.back, r, c, h, w, style, fg, bg)
+      grid::draw_box(t.back, r, c, h, w, style, fg, bg)
 
    draw_titled_box: Term, Int, Int, Int, Int, Int, String, Int, Int, Int => ()
    draw_titled_box = t, r, c, h, w, style, title, fg, bg, title_fg =>
-      grid::grid_draw_titled_box(t.back, r, c, h, w, style, title, fg, bg, title_fg)
+      grid::draw_titled_box(t.back, r, c, h, w, style, title, fg, bg, title_fg)
 
    draw_hline: Term, Int, Int, Int, Int, Int, Int, Int => ()
    draw_hline = t, r, c, len, ch, fg, bg, attr =>
-      grid::grid_draw_hline(t.back, r, c, len, ch, fg, bg, attr)
+      grid::draw_hline(t.back, r, c, len, ch, fg, bg, attr)
 
    draw_vline: Term, Int, Int, Int, Int, Int, Int, Int => ()
    draw_vline = t, r, c, len, ch, fg, bg, attr =>
-      grid::grid_draw_vline(t.back, r, c, len, ch, fg, bg, attr)
+      grid::draw_vline(t.back, r, c, len, ch, fg, bg, attr)
 
    hello: () => String
    hello = !=> "Hello from term!"

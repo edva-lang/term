@@ -3,9 +3,6 @@
 #use libc
 #use str
 
-#foreign "c"
-   usleep: (usec: Int) => Int
-
 #public
    // Escape character (ASCII 27)
    ESC = "\e"
