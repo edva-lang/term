@@ -1,0 +1,6 @@
+build/
+*.ll
+*.o
+term
+.edva/
+edva.lock.ccl
