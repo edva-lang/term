@@ -79,10 +79,8 @@
    // Returns (top_left, top_right, bot_left, bot_right, horiz, vert)
    border_chars: Int => (Int, Int, Int, Int, Int, Int)
    border_chars = style =>
-      style == BORDER_ROUNDED
-         | (0x256D, 0x256E, 0x2570, 0x256F, 0x2500, 0x2502) // ╭ ╮ ╰ ╯ ─ │
-         | style == BORDER_DOUBLE
-            | (0x2554, 0x2557, 0x255A, 0x255D, 0x2550, 0x2551) // ╔ ╗ ╚ ╝ ═ ║
-            | style == BORDER_ASCII
-               | (43, 43, 43, 43, 45, 124) // + + + + - |
-               | (0x250C, 0x2510, 0x2514, 0x2518, 0x2500, 0x2502) // ┌ ┐ └ ┘ ─ │ (BORDER_SINGLE)
+      style
+         [== BORDER_ROUNDED] (0x256D, 0x256E, 0x2570, 0x256F, 0x2500, 0x2502) // ╭ ╮ ╰ ╯ ─ │
+         [== BORDER_DOUBLE]  (0x2554, 0x2557, 0x255A, 0x255D, 0x2550, 0x2551) // ╔ ╗ ╚ ╝ ═ ║
+         [== BORDER_ASCII]   (43, 43, 43, 43, 45, 124)                         // + + + + - |
+         | (0x250C, 0x2510, 0x2514, 0x2518, 0x2500, 0x2502)                   // ┌ ┐ └ ┘ ─ │ (BORDER_SINGLE)
