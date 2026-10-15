@@ -1,3 +1,45 @@
 #use io
+#use term
+#use str
 
-io::out $ "Hello from term!"
+#foreign "c"
+   usleep: (usec: Int) => Int
+
+t = term::init!
+term::enable_raw(t)
+
+term::grid_put_str(t.back, 1, 2, "Welcome to term: High-Performance Edva Terminal Subsystem", 0x89b4fa, -1, term::ATTR_BOLD)
+term::grid_put_str(t.back, 3, 2, "Use Arrow Keys to move cursor, 'c' to change color, 'q' or Esc to exit", 0xa6e3a1, -1, 0)
+
+cursor_row' = 6
+cursor_col' = 10
+color_idx' = 0
+
+0.. @
+   // Draw canvas
+   term::grid_set(t.back, cursor_row', cursor_col', '*', 0xf38ba8, -1, term::ATTR_BOLD)
+   status = "Cursor at (" + str::from_int(cursor_row') + ", " + str::from_int(cursor_col') + ")"
+   term::grid_put_str(t.back, t.rows - 2, 2, status, 0xf9e2af, -1, 0)
+
+   term::render(t)
+
+   // Poll key with 50ms timeout
+   k = term::poll_key(50)
+   k.code == term::KEY_CHAR |
+      k.ch == 'q' | -->
+      k.ch == 'h' && cursor_col' > 1 | cursor_col' = cursor_col' - 1
+      k.ch == 'l' && cursor_col' < t.cols - 2 | cursor_col' = cursor_col' + 1
+      k.ch == 'k' && cursor_row' > 4 | cursor_row' = cursor_row' - 1
+      k.ch == 'j' && cursor_row' < t.rows - 4 | cursor_row' = cursor_row' + 1
+   k.code == term::KEY_UP && cursor_row' > 4 | cursor_row' = cursor_row' - 1
+   k.code == term::KEY_DOWN && cursor_row' < t.rows - 4 | cursor_row' = cursor_row' + 1
+   k.code == term::KEY_LEFT && cursor_col' > 1 | cursor_col' = cursor_col' - 1
+   k.code == term::KEY_RIGHT && cursor_col' < t.cols - 2 | cursor_col' = cursor_col' + 1
+   k.code == term::KEY_ESC | -->
+
+   // Clear old cursor position
+   term::grid_set(t.back, cursor_row', cursor_col', ' ', -1, -1, 0)
+
+term::disable_raw(t)
+term::shutdown(t)
+io::out("Term demo exited successfully.")

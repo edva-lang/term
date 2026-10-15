@@ -1,4 +1,397 @@
-#public
+// term — Terminal Driver & Cell Grid Matrix for Edva
+// High performance, zero-flicker terminal TUI subsystem
 
-hello: () => String
-hello = !=> "Hello from term!"
+#use libc
+#use str
+
+#foreign "c"
+   usleep: (usec: Int) => Int
+
+#public
+   // --- Key Codes ---
+   KEY_NONE       = 0
+   KEY_CHAR       = 1
+   KEY_UP         = 2
+   KEY_DOWN       = 3
+   KEY_LEFT       = 4
+   KEY_RIGHT      = 5
+   KEY_HOME       = 6
+   KEY_END        = 7
+   KEY_PAGE_UP    = 8
+   KEY_PAGE_DOWN  = 9
+   KEY_BACKSPACE  = 10
+   KEY_DELETE     = 11
+   KEY_ENTER      = 12
+   KEY_TAB        = 13
+   KEY_ESC        = 14
+   KEY_CTRL       = 15
+   KEY_F1         = 16
+   KEY_F2         = 17
+   KEY_F3         = 18
+   KEY_F4         = 19
+   KEY_F5         = 20
+   KEY_F6         = 21
+   KEY_F7         = 22
+   KEY_F8         = 23
+   KEY_F9         = 24
+   KEY_F10        = 25
+   KEY_F11        = 26
+   KEY_F12        = 27
+
+   // Key event
+   #type Key (code: Int, ch: Int)
+
+   key_none: () => Key
+   key_none = !=> Key((KEY_NONE, 0))
+
+   key_char: Int => Key
+   key_char = c => Key((KEY_CHAR, c))
+
+   key_code: Int => Key
+   key_code = k => Key((k, 0))
+
+   key_ctrl: Int => Key
+   key_ctrl = c => Key((KEY_CTRL, c))
+
+   // --- Text Attributes ---
+   ATTR_NONE      = 0
+   ATTR_BOLD      = 1
+   ATTR_DIM       = 2
+   ATTR_ITALIC    = 4
+   ATTR_UNDERLINE = 8
+   ATTR_REVERSE   = 16
+
+   // --- Cell & Grid Structure ---
+   // Each cell occupies 32 bytes in memory:
+   //   +0:  ch (Int, 8 bytes)
+   //   +8:  fg_rgb (Int, 8 bytes: -1 for default, 0xRRGGBB)
+   //   +16: bg_rgb (Int, 8 bytes: -1 for default, 0xRRGGBB)
+   //   +24: attr (Int, 8 bytes: ATTR_* bitmask)
+   CELL_SIZE = 32
+
+   #type Grid (
+      rows: Int,
+      cols: Int,
+      cells: Addr
+   )
+
+   // Allocate a new grid of rows x cols
+   grid_new: Int, Int => Grid
+   grid_new = rows, cols =>
+      r = rows < 1 | 1 | rows
+      c = cols < 1 | 1 | cols
+      total_bytes = r * c * CELL_SIZE
+      buf = libc::malloc(total_bytes)
+      libc::memset(buf, 0, total_bytes)
+      // Initialize with spaces and default colors (-1)
+      (r * c) @ i =>
+         cp = buf + i * CELL_SIZE
+         @[cp] = 32           // ' '
+         @[cp + 8] = -1       // default fg
+         @[cp + 16] = -1      // default bg
+         @[cp + 24] = 0       // default attr
+      Grid((r, c, buf))
+
+   grid_free: Grid => ()
+   grid_free = g =>
+      libc::free(g.cells)
+
+   grid_clear: Grid => ()
+   grid_clear = g =>
+      total = g.rows * g.cols
+      total @ i =>
+         cp = g.cells + i * CELL_SIZE
+         @[cp] = 32
+         @[cp + 8] = -1
+         @[cp + 16] = -1
+         @[cp + 24] = 0
+
+   grid_set: Grid, Int, Int, Int, Int, Int, Int => ()
+   grid_set = g, row, col, ch, fg, bg, attr =>
+      row < 0 || row !< g.rows || col < 0 || col !< g.cols | --|
+      cp = g.cells + (row * g.cols + col) * CELL_SIZE
+      @[cp] = ch
+      @[cp + 8] = fg
+      @[cp + 16] = bg
+      @[cp + 24] = attr
+
+   grid_put_str: Grid, Int, Int, String, Int, Int, Int => ()
+   grid_put_str = g, row, col, text, fg, bg, attr =>
+      row < 0 || row !< g.rows | --|
+      len = ?text
+      c' = col
+      len @ i =>
+         c' !< g.cols | -->
+         c' !< 0
+            |
+               ch = Int(text(i))
+               grid_set(g, row, c', ch, fg, bg, attr)
+         c' = c' + 1
+
+   // --- Terminal Raw State ---
+   #type Term (
+      orig_termios: Addr,
+      raw_termios: Addr,
+      is_raw: Int,
+      rows: Int,
+      cols: Int,
+      front: Grid,
+      back: Grid
+   )
+
+   // Write string directly to stdout
+   write_raw: String => ()
+   write_raw = s =>
+      libc::write(1, s, ?s)
+
+   // Query terminal dimensions via TIOCGWINSZ ioctl (0x5413)
+   get_size: () => (Int, Int)
+   get_size = !=>
+      buf = libc::malloc(8)
+      res = libc::ioctl(1, 0x5413, Int(buf))
+      res != 0
+         |
+            libc::free(buf)
+            (24, 80)
+         |
+            row = Int(@[buf u16])
+            col = Int(@[buf + 2 u16])
+            libc::free(buf)
+            r = row < 1 | 24 | row
+            c = col < 1 | 80 | col
+            (r, c)
+
+   // Initialize Term instance
+   init: () => Term
+   init = !=>
+      orig_t = libc::malloc(64)
+      raw_t = libc::malloc(64)
+      libc::memset(orig_t, 0, 64)
+      libc::memset(raw_t, 0, 64)
+      sz = get_size!
+      r = sz(0)
+      c = sz(1)
+      front = grid_new(r, c)
+      back = grid_new(r, c)
+      Term((orig_t, raw_t, 0, r, c, front, back))
+
+   // Free Term resources
+   shutdown: Term => ()
+   shutdown = t =>
+      t.is_raw != 0 | disable_raw(t)
+      grid_free(t.front)
+      grid_free(t.back)
+      libc::free(t.orig_termios)
+      libc::free(t.raw_termios)
+
+   // Escape character (ASCII 27)
+   esc: () => String
+   esc = !=> str::from_byte(27)
+
+   // Enable raw mode
+   enable_raw: Term => ()
+   enable_raw = t =>
+      libc::tcgetattr(0, t.orig_termios) != 0 | --|
+      libc::memcpy(t.raw_termios, t.orig_termios, 64)
+      libc::cfmakeraw(t.raw_termios)
+      libc::tcsetattr(0, 0, t.raw_termios)
+      e = esc!
+      write_raw(e + "[?1049h" + e + "[?25l") // enter alt screen, hide cursor
+
+   // Disable raw mode and restore screen
+   disable_raw: Term => ()
+   disable_raw = t =>
+      e = esc!
+      write_raw(e + "[?25h" + e + "[?1049l") // show cursor, exit alt screen
+      libc::tcsetattr(0, 2, t.orig_termios)
+
+   // Resize back & front buffers if window dimensions changed
+   refresh_size: Term => ()
+   refresh_size = t =>
+      sz = get_size!
+      new_r = sz(0)
+      new_c = sz(1)
+      new_r != t.rows || new_c != t.cols
+         |
+            grid_free(t.front)
+            grid_free(t.back)
+            t.front = grid_new(new_r, new_c)
+            t.back = grid_new(new_r, new_c)
+            t.rows = new_r
+            t.cols = new_c
+            e = esc!
+            write_raw(e + "[2J" + e + "[H") // clear full screen on resize
+
+   // Check if input is available on stdin with timeout (ms)
+   poll_in: Int => Int
+   poll_in = timeout_ms =>
+      pfd = libc::malloc(8)
+      @[pfd] = i32(0)           // fd 0 (stdin)
+      @[pfd + 4] = i16(1)       // POLLIN (1)
+      @[pfd + 6] = i16(0)       // revents = 0
+      res = libc::poll(pfd, 1, timeout_ms)
+      ready = res > 0 && (Int(@[pfd + 6 i16]) .&. 1) != 0
+      libc::free(pfd)
+      ready | 1 | 0
+
+   // Poll and read a key event
+   poll_key: Int => Key
+   poll_key = timeout_ms =>
+      poll_in(timeout_ms) == 0 | --| key_none!
+      b = libc::malloc(16)
+      n = libc::read(0, b, 1)
+      n !> 0
+         |
+            libc::free(b)
+            key_none!
+         |
+            b0 = Int(@[b u8])
+            b0 == 27
+               |
+                  // Check if this is an escape sequence or standalone Esc
+                  poll_in(20) == 0
+                     |
+                        libc::free(b)
+                        key_code(KEY_ESC)
+                     |
+                        n2 = libc::read(0, b + 1, 1)
+                        b1 = Int(@[b + 1 u8])
+                        b1 == '['
+                           |
+                              libc::read(0, b + 2, 1)
+                              b2 = Int(@[b + 2 u8])
+                              res' = key_none!
+                              b2 == 'A' | res' = key_code(KEY_UP)
+                              b2 == 'B' | res' = key_code(KEY_DOWN)
+                              b2 == 'C' | res' = key_code(KEY_RIGHT)
+                              b2 == 'D' | res' = key_code(KEY_LEFT)
+                              b2 == 'H' | res' = key_code(KEY_HOME)
+                              b2 == 'F' | res' = key_code(KEY_END)
+                              b2 == '1' || b2 == '2' || b2 == '3' || b2 == '4' || b2 == '5' || b2 == '6'
+                                 |
+                                    libc::read(0, b + 3, 1) // read trailing '~'
+                                    b2 == '3' | res' = key_code(KEY_DELETE)
+                                    b2 == '5' | res' = key_code(KEY_PAGE_UP)
+                                    b2 == '6' | res' = key_code(KEY_PAGE_DOWN)
+                                    b2 == '1' | res' = key_code(KEY_HOME)
+                                    b2 == '4' | res' = key_code(KEY_END)
+                              libc::free(b)
+                              res'
+                           | b1 == 'O'
+                              |
+                                 libc::read(0, b + 2, 1)
+                                 b2 = Int(@[b + 2 u8])
+                                 res' = key_none!
+                                 b2 == 'P' | res' = key_code(KEY_F1)
+                                 b2 == 'Q' | res' = key_code(KEY_F2)
+                                 b2 == 'R' | res' = key_code(KEY_F3)
+                                 b2 == 'S' | res' = key_code(KEY_F4)
+                                 libc::free(b)
+                                 res'
+                              |
+                                 libc::free(b)
+                                 key_code(KEY_ESC)
+               |
+                  libc::free(b)
+                  b0 == 10 || b0 == 13 | --| key_code(KEY_ENTER)
+                  b0 == 9              | --| key_code(KEY_TAB)
+                  b0 == 127 || b0 == 8 | --| key_code(KEY_BACKSPACE)
+                  b0 !< 1 && b0 !> 26  | --| key_ctrl(b0 + 96) // Ctrl-a = 1 -> 'a'
+                  key_char(b0)
+
+   // Render diff between back and front buffers
+   render: Term => ()
+   render = t =>
+      rows = t.rows
+      cols = t.cols
+      front_buf = t.front.cells
+      back_buf = t.back.cells
+
+      cur_fg' = -2
+      cur_bg' = -2
+      cur_attr' = -1
+      cur_r' = -1
+      cur_c' = -1
+
+      e = esc!
+
+      // Output builder for batched terminal write
+      out = {8192}
+
+      rows @ r =>
+         cols @ c =>
+            off = (r * cols + c) * CELL_SIZE
+            fp = front_buf + off
+            bp = back_buf + off
+
+            f_ch = Int(@[fp Int])
+            b_ch = Int(@[bp Int])
+            f_fg = Int(@[fp + 8 Int])
+            b_fg = Int(@[bp + 8 Int])
+            f_bg = Int(@[fp + 16 Int])
+            b_bg = Int(@[bp + 16 Int])
+            f_at = Int(@[fp + 24 Int])
+            b_at = Int(@[bp + 24 Int])
+
+            // If cell changed, emit update
+            f_ch != b_ch || f_fg != b_fg || f_bg != b_bg || f_at != b_at
+               |
+                  // Only move cursor if not already at (r, c)
+                  r != cur_r' || c != cur_c'
+                     |
+                        out += e + "[" + str::from_int(r + 1) + ";" + str::from_int(c + 1) + "H"
+                        cur_r' = r
+                        cur_c' = c
+
+                  // Update attributes if changed
+                  b_at != cur_attr'
+                     |
+                        out += e + "[0m" // reset
+                        cur_fg' = -2
+                        cur_bg' = -2
+                        (b_at .&. ATTR_BOLD) != 0      | out += e + "[1m"
+                        (b_at .&. ATTR_DIM) != 0       | out += e + "[2m"
+                        (b_at .&. ATTR_ITALIC) != 0    | out += e + "[3m"
+                        (b_at .&. ATTR_UNDERLINE) != 0 | out += e + "[4m"
+                        (b_at .&. ATTR_REVERSE) != 0   | out += e + "[7m"
+                        cur_attr' = b_at
+
+                  // Update FG color if changed
+                  b_fg != cur_fg'
+                     |
+                        b_fg == -1
+                           | out += e + "[39m"
+                           |
+                              red = (b_fg .>. 16) .&. 255
+                              green = (b_fg .>. 8) .&. 255
+                              blue = b_fg .&. 255
+                              out += e + "[38;2;" + str::from_int(red) + ";" + str::from_int(green) + ";" + str::from_int(blue) + "m"
+                        cur_fg' = b_fg
+
+                  // Update BG color if changed
+                  b_bg != cur_bg'
+                     |
+                        b_bg == -1
+                           | out += e + "[49m"
+                           |
+                              red = (b_bg .>. 16) .&. 255
+                              green = (b_bg .>. 8) .&. 255
+                              blue = b_bg .&. 255
+                              out += e + "[48;2;" + str::from_int(red) + ";" + str::from_int(green) + ";" + str::from_int(blue) + "m"
+                        cur_bg' = b_bg
+
+                  // Emit character
+                  out += str::from_byte(b_ch)
+                  cur_c' = cur_c' + 1
+
+                  // Sync front cell with back cell
+                  @[fp] = b_ch
+                  @[fp + 8] = b_fg
+                  @[fp + 16] = b_bg
+                  @[fp + 24] = b_at
+
+      // Flush buffer to stdout in a single write call
+      ?out > 0 | write_raw(+out)
+
+   hello: () => String
+   hello = !=> "Hello from term!"
