@@ -137,6 +137,16 @@ ansi_name = idx =>
       [14] "BCya"
       | "BWhi"
 
+PAD_R = 4
+PAD_C = 3
+PAD_H = 10
+PAD_W = 26
+
+PAD_MIN_R = 5
+PAD_MAX_R = 12
+PAD_MIN_C = 4
+PAD_MAX_C = 27
+
 t = term::init!
 term::enable_raw(t)
 term::enable_mouse(t)
@@ -147,7 +157,7 @@ mouse_x' = 0
 mouse_y' = 0
 tick' = 0
 mouse_msg' = ++"Mouse: None"
-status_msg' = ++"Use Arrows/hjkl, Mouse Click/Scroll, or 'q' to exit"
+status_msg' = ++"Use Arrows/hjkl, Mouse Click/Drag/Scroll, or 'q' to exit"
 
 draw_ui: term::Term, Int, Int, String, String, Int => ()
 draw_ui = tm, cur_r, cur_c, stat_msg, m_msg, phase =>
@@ -168,14 +178,14 @@ draw_ui = tm, cur_r, cur_c, stat_msg, m_msg, phase =>
    c > 50 |
       put_gradient_str(tm, 2, c - 34, "Smooth Micro-Step Gradients", 0xa6e3a1, 0x89b4fa, term::ATTR_BOLD)
 
-   // Left Panel: Interactive Canvas (rows 4..13, width 26)
-   term::draw_titled_box(tm, 4, 3, 10, 26, term::BORDER_SINGLE, "Canvas", 0x585b70, -1, 0xcdd6f4)
+   // Left Panel: Interactive Mouse Test Pad (rows 4..13, width 26)
+   term::draw_titled_box(tm, PAD_R, PAD_C, PAD_H, PAD_W, term::BORDER_SINGLE, "Mouse Test Pad", 0x585b70, -1, 0xcdd6f4)
    term::put_str(tm, 5, 5, "Arrows/hjkl : Move *", 0xa6adc8, -1, 0)
-   term::put_str(tm, 6, 5, "Mouse Click : Jump", 0xa6adc8, -1, 0)
+   term::put_str(tm, 6, 5, "Click/Drag  : Jump", 0xa6adc8, -1, 0)
    term::put_str(tm, 7, 5, "Scroll Wheel: Up/Dn", 0xa6adc8, -1, 0)
    term::put_str(tm, 9, 5, "Press 'q'   : Exit", 0xf38ba8, -1, term::ATTR_BOLD)
 
-   // Active cursor marker inside canvas
+   // Active cursor marker inside pad
    term::set_cell(tm, cur_r, cur_c, '*', 0xf38ba8, 0x313244, term::ATTR_BOLD)
 
    // Right Panel: 24-bit TrueColor spectrum and gradients (rows 4..13)
@@ -253,21 +263,21 @@ draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick')
    ev.kind == term::EV_KEY |
       ev.code == term::KEY_CHAR |
          ev.ch == 'q' | -->
-         ev.ch == 'h' && cursor_c' > 4 | cursor_c' = cursor_c' - 1
-         ev.ch == 'l' && cursor_c' < 27 | cursor_c' = cursor_c' + 1
-         ev.ch == 'k' && cursor_r' > 5 | cursor_r' = cursor_r' - 1
-         ev.ch == 'j' && cursor_r' < 12 | cursor_r' = cursor_r' + 1
+         ev.ch == 'h' && cursor_c' > PAD_MIN_C | cursor_c' = cursor_c' - 1
+         ev.ch == 'l' && cursor_c' < PAD_MAX_C | cursor_c' = cursor_c' + 1
+         ev.ch == 'k' && cursor_r' > PAD_MIN_R | cursor_r' = cursor_r' - 1
+         ev.ch == 'j' && cursor_r' < PAD_MAX_R | cursor_r' = cursor_r' + 1
          draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick')
-      ev.code == term::KEY_UP && cursor_r' > 5 |
+      ev.code == term::KEY_UP && cursor_r' > PAD_MIN_R |
          cursor_r' = cursor_r' - 1
          draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick')
-      ev.code == term::KEY_DOWN && cursor_r' < 12 |
+      ev.code == term::KEY_DOWN && cursor_r' < PAD_MAX_R |
          cursor_r' = cursor_r' + 1
          draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick')
-      ev.code == term::KEY_LEFT && cursor_c' > 4 |
+      ev.code == term::KEY_LEFT && cursor_c' > PAD_MIN_C |
          cursor_c' = cursor_c' - 1
          draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick')
-      ev.code == term::KEY_RIGHT && cursor_c' < 27 |
+      ev.code == term::KEY_RIGHT && cursor_c' < PAD_MAX_C |
          cursor_c' = cursor_c' + 1
          draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick')
       ev.code == term::KEY_ESC | -->
@@ -275,20 +285,30 @@ draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick')
    ev.kind == term::EV_MOUSE |
       mouse_x' = ev.x
       mouse_y' = ev.y
+      mx = ev.x - 1
+      my = ev.y - 1
       ev.mouse_act == term::MOUSE_PRESS |
          mouse_msg' = ++("Mouse Pressed: Button " + str::from_int(ev.mouse_btn) + " at (" + str::from_int(ev.x) + ", " + str::from_int(ev.y) + ")")
-         // If clicked inside canvas, move cursor there
-         ev.x !< 4 && ev.x !> 27 && ev.y !< 5 && ev.y !> 12 |
-            cursor_c' = ev.x - 1
-            cursor_r' = ev.y - 1
+         my !< PAD_R && my !> (PAD_R + PAD_H - 1) && mx !< PAD_C && mx !> (PAD_C + PAD_W - 1) |
+            target_r = my < PAD_MIN_R | PAD_MIN_R | (my > PAD_MAX_R | PAD_MAX_R | my)
+            target_c = mx < PAD_MIN_C | PAD_MIN_C | (mx > PAD_MAX_C | PAD_MAX_C | mx)
+            cursor_r' = target_r
+            cursor_c' = target_c
+      ev.mouse_act == term::MOUSE_DRAG |
+         mouse_msg' = ++("Mouse Dragged to (" + str::from_int(ev.x) + ", " + str::from_int(ev.y) + ")")
+         my !< PAD_R && my !> (PAD_R + PAD_H - 1) && mx !< PAD_C && mx !> (PAD_C + PAD_W - 1) |
+            target_r = my < PAD_MIN_R | PAD_MIN_R | (my > PAD_MAX_R | PAD_MAX_R | my)
+            target_c = mx < PAD_MIN_C | PAD_MIN_C | (mx > PAD_MAX_C | PAD_MAX_C | mx)
+            cursor_r' = target_r
+            cursor_c' = target_c
       ev.mouse_act == term::MOUSE_RELEASE |
          mouse_msg' = ++("Mouse Released at (" + str::from_int(ev.x) + ", " + str::from_int(ev.y) + ")")
       ev.mouse_act == term::MOUSE_SCROLL_UP |
          mouse_msg' = ++("Mouse Wheel UP at (" + str::from_int(ev.x) + ", " + str::from_int(ev.y) + ")")
-         cursor_r' > 5 | cursor_r' = cursor_r' - 1
+         cursor_r' > PAD_MIN_R | cursor_r' = cursor_r' - 1
       ev.mouse_act == term::MOUSE_SCROLL_DOWN |
          mouse_msg' = ++("Mouse Wheel DOWN at (" + str::from_int(ev.x) + ", " + str::from_int(ev.y) + ")")
-         cursor_r' < 12 | cursor_r' = cursor_r' + 1
+         cursor_r' < PAD_MAX_R | cursor_r' = cursor_r' + 1
       draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick')
 
    ev.kind == term::EV_RESIZE |
