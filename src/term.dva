@@ -1,6 +1,5 @@
 // term/src/term.dva — High-performance, zero-flicker Edva terminal library
 
-#use libc
 #use str
 #use "key"
 #use "style"
@@ -134,16 +133,14 @@
    // Initialize terminal subsystem
    init: () => Term
    init = !=>
-      orig_t = libc::malloc(64)
-      raw_t = libc::malloc(64)
-      libc::memset(orig_t, 0, 64)
-      libc::memset(raw_t, 0, 64)
+      orig_t = {64}
+      raw_t = {64}
       sz = raw::get_size!
       r = sz(0)
       c = sz(1)
       front = grid::grid_new(r, c)
       back = grid::grid_new(r, c)
-      Term((orig_t, raw_t, <->, <->, r, c, front, back))
+      Term((&orig_t, &raw_t, <->, <->, r, c, front, back))
 
    // Shutdown and clean up resources
    shutdown: Term => ()
@@ -152,8 +149,6 @@
       t.is_raw   | disable_raw(t)
       grid::grid_free(t.front)
       grid::grid_free(t.back)
-      libc::free(t.orig_termios)
-      libc::free(t.raw_termios)
 
    // Enable raw mode and alternate screen
    enable_raw: Term => ()

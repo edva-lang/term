@@ -8,24 +8,21 @@
    // Check if input is available on stdin with timeout (ms)
    poll_in: Int => <>
    poll_in = timeout_ms =>
-      pfd = libc::malloc(8)
-      @[pfd] = i32(0)           // fd 0 (stdin)
-      @[pfd + 4] = i16(1)       // POLLIN (1)
-      @[pfd + 6] = i16(0)       // revents = 0
-      res = libc::poll(pfd, 1, timeout_ms)
-      ready = res > 0 && (Int(@[pfd + 6 i16]) .&. 1) != 0
-      libc::free(pfd)
-      ready
+      pfd = {8}
+      p = &pfd
+      @[p] = i32(0)           // fd 0 (stdin)
+      @[p + 4] = i16(1)       // POLLIN (1)
+      @[p + 6] = i16(0)       // revents = 0
+      res = libc::poll(p, 1, timeout_ms)
+      res > 0 && (Int(@[p + 6 i16]) .&. 1) != 0
 
    // Read 1 byte non-blocking if available
    read_byte_opt: Int => < Int | >
    read_byte_opt = timeout_ms =>
       !poll_in(timeout_ms) | --| <-->
-      b = libc::malloc(8)
-      n = libc::read(0, b, 1)
-      res' = n > 0 | <+ Int(@[b u8]) +> | <-->
-      libc::free(b)
-      res'
+      b = {8}
+      n = libc::read(0, &b, 1)
+      n > 0 | <+ Int(@[&b u8]) +> | <-->
 
    // Parse decimal number until delimiter, returns (parsed_number, terminating_char)
    parse_decimal: Int => (Int, Int)

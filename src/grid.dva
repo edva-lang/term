@@ -1,6 +1,5 @@
 // term/src/grid.dva — Cell Grid Matrix, UTF-8 rune renderer, and Drawing Primitives
 
-#use libc
 #use str
 #use "style"
 #use "raw"
@@ -40,19 +39,18 @@
       r = rows < 1 | 1 | rows
       c = cols < 1 | 1 | cols
       total_bytes = r * c * CELL_SIZE
-      buf = libc::malloc(total_bytes)
-      libc::memset(buf, 0, total_bytes)
+      buf = {total_bytes}
+      p = &buf
       (r * c) @ i =>
-         cp = buf + i * CELL_SIZE
+         cp = p + i * CELL_SIZE
          @[cp] = 32           // ' '
          @[cp + 8] = -1       // default fg
          @[cp + 16] = -1      // default bg
          @[cp + 24] = 0       // default attr
-      Grid((r, c, buf))
+      Grid((r, c, p))
 
    grid_free: Grid => ()
-   grid_free = g =>
-      libc::free(g.cells)
+   grid_free = g => --|
 
    grid_clear: Grid => ()
    grid_clear = g =>

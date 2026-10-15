@@ -20,16 +20,14 @@
    // Query terminal rows and columns via TIOCGWINSZ ioctl (0x5413)
    get_size: () => (Int, Int)
    get_size = !=>
-      buf = libc::malloc(8)
-      res = libc::ioctl(1, 0x5413, Int(buf))
+      buf = {8}
+      p = &buf
+      res = libc::ioctl(1, 0x5413, Int(p))
       res != 0
+         | (24, 80)
          |
-            libc::free(buf)
-            (24, 80)
-         |
-            row = Int(@[buf u16])
-            col = Int(@[buf + 2 u16])
-            libc::free(buf)
+            row = Int(@[p u16])
+            col = Int(@[p + 2 u16])
             r = row < 1 | 24 | row
             c = col < 1 | 80 | col
             (r, c)
