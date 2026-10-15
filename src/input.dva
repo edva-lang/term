@@ -1,0 +1,198 @@
+// term/src/input.dva — Stdin polling and ANSI escape sequence event decoding
+
+#use libc
+#use str
+#use key
+
+#public
+   // Check if input is available on stdin with timeout (ms)
+   poll_in: Int => Int
+   poll_in = timeout_ms =>
+      pfd = libc::malloc(8)
+      @[pfd] = i32(0)           // fd 0 (stdin)
+      @[pfd + 4] = i16(1)       // POLLIN (1)
+      @[pfd + 6] = i16(0)       // revents = 0
+      res = libc::poll(pfd, 1, timeout_ms)
+      ready = res > 0 && (Int(@[pfd + 6 i16]) .&. 1) != 0
+      libc::free(pfd)
+      ready | 1 | 0
+
+   // Read 1 byte non-blocking if available
+   read_byte_opt: Int => < Int | >
+   read_byte_opt = timeout_ms =>
+      poll_in(timeout_ms) == 0 | --| <-->
+      b = libc::malloc(8)
+      n = libc::read(0, b, 1)
+      res' = n > 0 | <+ Int(@[b u8]) +> | <-->
+      libc::free(b)
+      res'
+
+   // Parse decimal number until delimiter, returns (parsed_number, terminating_char)
+   parse_decimal: Int => (Int, Int)
+   parse_decimal = first_digit =>
+      num' = first_digit - 48 // '0' = 48
+      term_c' = 0
+      16 @ i =>
+         opt = read_byte_opt(20)
+         opt
+            | b =>
+               b !< 48 && b !> 57
+                  |
+                     num' = num' * 10 + (b - 48)
+                  |
+                     term_c' = b
+                     -->
+            | -->
+      (num', term_c')
+
+   // Parse SGR mouse event: \x1b[<{btn};{col};{row}{M|m}
+   // '<' has already been consumed
+   parse_sgr_mouse: () => key::Event
+   parse_sgr_mouse = !=>
+      b_opt = read_byte_opt(20)
+      b_opt
+         | b0 =>
+            d1 = parse_decimal(b0)
+            btn_raw = d1(0)
+            b_opt2 = read_byte_opt(20)
+            b_opt2
+               | b1 =>
+                  d2 = parse_decimal(b1)
+                  col = d2(0)
+                  b_opt3 = read_byte_opt(20)
+                  b_opt3
+                     | b2 =>
+                        d3 = parse_decimal(b2)
+                        row = d3(0)
+                        term_char = d3(1) // 'M' or 'm'
+                        is_release = term_char == 'm'
+
+                        // Decode button & action
+                        act' = is_release | key::MOUSE_RELEASE | key::MOUSE_PRESS
+                        btn' = key::MOUSE_BTN_LEFT
+                        mods' = key::MOD_NONE
+
+                        btn_base = btn_raw .&. 3
+                        btn_base == 0 | btn' = key::MOUSE_BTN_LEFT
+                        btn_base == 1 | btn' = key::MOUSE_BTN_MIDDLE
+                        btn_base == 2 | btn' = key::MOUSE_BTN_RIGHT
+                        btn_base == 3 | btn' = key::MOUSE_BTN_NONE
+
+                        // Wheel events
+                        (btn_raw .&. 64) != 0 |
+                           (btn_raw .&. 1) != 0
+                              | act' = key::MOUSE_SCROLL_DOWN
+                              | act' = key::MOUSE_SCROLL_UP
+
+                        // Drag
+                        (btn_raw .&. 32) != 0 && !is_release |
+                           act' = key::MOUSE_DRAG
+
+                        // Modifiers
+                        (btn_raw .&. 4) != 0 |
+                           mods' = mods' .|. key::MOD_SHIFT
+                        (btn_raw .&. 8) != 0 |
+                           mods' = mods' .|. key::MOD_ALT
+                        (btn_raw .&. 16) != 0 |
+                           mods' = mods' .|. key::MOD_CTRL
+
+                        key::ev_mouse(act', btn', mods', col, row)
+                     | key::ev_none!
+               | key::ev_none!
+         | key::ev_none!
+
+   decode_csi_letter: Int => key::Event
+   decode_csi_letter = b2 =>
+      b2 == 'A' | --| key::ev_code(key::KEY_UP)
+      b2 == 'B' | --| key::ev_code(key::KEY_DOWN)
+      b2 == 'C' | --| key::ev_code(key::KEY_RIGHT)
+      b2 == 'D' | --| key::ev_code(key::KEY_LEFT)
+      b2 == 'H' | --| key::ev_code(key::KEY_HOME)
+      b2 == 'F' | --| key::ev_code(key::KEY_END)
+      b2 == 'Z' | --| key::ev_key(key::KEY_BACKTAB, 0, key::MOD_SHIFT)
+      key::ev_none!
+
+   decode_tilde_key: Int => key::Event
+   decode_tilde_key = b2 =>
+      b2 == '2' | --| key::ev_code(key::KEY_INSERT)
+      b2 == '3' | --| key::ev_code(key::KEY_DELETE)
+      b2 == '5' | --| key::ev_code(key::KEY_PAGE_UP)
+      b2 == '6' | --| key::ev_code(key::KEY_PAGE_DOWN)
+      b2 == '1' | --| key::ev_code(key::KEY_HOME)
+      b2 == '4' | --| key::ev_code(key::KEY_END)
+      key::ev_none!
+
+   decode_fkey: Int => key::Event
+   decode_fkey = fb =>
+      fb == 'P' | --| key::ev_code(key::KEY_F1)
+      fb == 'Q' | --| key::ev_code(key::KEY_F2)
+      fb == 'R' | --| key::ev_code(key::KEY_F3)
+      fb == 'S' | --| key::ev_code(key::KEY_F4)
+      key::ev_none!
+
+   decode_mod_arrow: Int, Int => key::Event
+   decode_mod_arrow = fin_key, mods =>
+      fin_key == 'A' | --| key::ev_key(key::KEY_UP, 0, mods)
+      fin_key == 'B' | --| key::ev_key(key::KEY_DOWN, 0, mods)
+      fin_key == 'C' | --| key::ev_key(key::KEY_RIGHT, 0, mods)
+      fin_key == 'D' | --| key::ev_key(key::KEY_LEFT, 0, mods)
+      key::ev_none!
+
+   parse_csi: () => key::Event
+   parse_csi = !=>
+      c_opt = read_byte_opt(20)
+      c_opt
+         | b2 =>
+            b2 == '<' | --| parse_sgr_mouse!
+            csi_ev = decode_csi_letter(b2)
+            csi_ev.code != key::KEY_NONE | --| csi_ev
+            b2 !< '1' && b2 !> '6' |
+               c4 = read_byte_opt(20)
+               c4
+                  | b3 =>
+                     b3 == ';' |
+                        c5 = read_byte_opt(20)
+                        c6 = read_byte_opt(20)
+                        mod_val = c5 | v => v - 48 | 0
+                        fin_key = c6 | v => v | 0
+                        mods' = key::MOD_NONE
+                        mod_val == 2 | mods' = key::MOD_SHIFT
+                        mod_val == 3 | mods' = key::MOD_ALT
+                        mod_val == 5 | mods' = key::MOD_CTRL
+                        marr = decode_mod_arrow(fin_key, mods')
+                        --| marr
+                     tkey = decode_tilde_key(b2)
+                     --| tkey
+                  | key::ev_none!
+            key::ev_none!
+         | key::ev_none!
+
+   parse_escape_seq: () => key::Event
+   parse_escape_seq = !=>
+      p_opt = read_byte_opt(20)
+      p_opt
+         | b1 =>
+            b1 == '[' | --| parse_csi!
+            b1 == 'O' |
+               f_opt = read_byte_opt(20)
+               f_opt
+                  | fb =>
+                     fk = decode_fkey(fb)
+                     --| fk
+                  | key::ev_none!
+            key::ev_key(key::KEY_CHAR, b1, key::MOD_ALT)
+         | key::ev_code(key::KEY_ESC)
+
+   // Read and decode the next input event
+   poll_event: Int => key::Event
+   poll_event = timeout_ms =>
+      b_opt = read_byte_opt(timeout_ms)
+      b_opt
+         | b0 =>
+            b0 == 27             | --| parse_escape_seq!
+            b0 == 10 || b0 == 13 | --| key::ev_code(key::KEY_ENTER)
+            b0 == 9              | --| key::ev_code(key::KEY_TAB)
+            b0 == 127 || b0 == 8 | --| key::ev_code(key::KEY_BACKSPACE)
+            b0 !< 1 && b0 !> 26  | --| key::ev_ctrl(b0 + 96)
+            key::ev_char(b0)
+         | key::ev_none!

@@ -1,3 +1,5 @@
+// term/src/main.dva — Rich interactive demonstration of term features
+
 #use io
 #use term
 #use str
@@ -7,39 +9,91 @@
 
 t = term::init!
 term::enable_raw(t)
+term::enable_mouse(t)
 
-term::grid_put_str(t.back, 1, 2, "Welcome to term: High-Performance Edva Terminal Subsystem", 0x89b4fa, -1, term::ATTR_BOLD)
-term::grid_put_str(t.back, 3, 2, "Use Arrow Keys to move cursor, 'c' to change color, 'q' or Esc to exit", 0xa6e3a1, -1, 0)
+cursor_r' = 6
+cursor_c' = 10
+mouse_x' = 0
+mouse_y' = 0
+mouse_msg' = ++"Mouse: None"
+status_msg' = ++"Use Arrows/hjkl, Mouse Click/Scroll, or 'q' to exit"
 
-cursor_row' = 6
-cursor_col' = 10
-color_idx' = 0
+draw_ui: term::Term, Int, Int, String, String => ()
+draw_ui = tm, cur_r, cur_c, stat_msg, m_msg =>
+   term::clear(tm)
+   r = tm.rows
+   c = tm.cols
+
+   // Outer window box with rounded corners
+   term::draw_titled_box(tm, 0, 0, r, c, term::BORDER_ROUNDED, "term v0.1.0 — Demo", 0x89b4fa, -1, 0xf9e2af)
+
+   // Status bar at bottom
+   term::put_str(tm, r - 2, 2, stat_msg, 0xa6adc8, -1, 0)
+   term::put_str(tm, r - 3, 2, m_msg, 0x94e2d5, -1, 0)
+
+   // Coordinates display
+   coord = "Cursor: (" + str::from_int(cur_r) + ", " + str::from_int(cur_c) + ") | Screen: " + str::from_int(r) + "x" + str::from_int(c)
+   term::put_str(tm, 2, 3, coord, 0xfab387, -1, 0)
+
+   // Inner sample box
+   term::draw_box(tm, 4, 3, 10, 30, term::BORDER_SINGLE, 0x585b70, -1)
+   term::put_str(tm, 5, 5, "Canvas Area", 0xcdd6f4, -1, term::ATTR_UNDERLINE)
+   term::put_str(tm, 7, 5, "Click inside or move *", 0x6c7086, -1, 0)
+
+   // Draw active cursor marker
+   term::set_cell(tm, cur_r, cur_c, '*', 0xf38ba8, -1, term::ATTR_BOLD)
+
+   term::render(tm)
+
+draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg')
 
 0.. @
-   // Draw canvas
-   term::grid_set(t.back, cursor_row', cursor_col', '*', 0xf38ba8, -1, term::ATTR_BOLD)
-   status = "Cursor at (" + str::from_int(cursor_row') + ", " + str::from_int(cursor_col') + ")"
-   term::grid_put_str(t.back, t.rows - 2, 2, status, 0xf9e2af, -1, 0)
+   ev = term::poll_event(t, 50)
+   ev.kind == term::EV_KEY |
+      ev.code == term::KEY_CHAR |
+         ev.ch == 'q' | -->
+         ev.ch == 'h' && cursor_c' > 4 | cursor_c' = cursor_c' - 1
+         ev.ch == 'l' && cursor_c' < 31 | cursor_c' = cursor_c' + 1
+         ev.ch == 'k' && cursor_r' > 5 | cursor_r' = cursor_r' - 1
+         ev.ch == 'j' && cursor_r' < 12 | cursor_r' = cursor_r' + 1
+         draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg')
+      ev.code == term::KEY_UP && cursor_r' > 5 |
+         cursor_r' = cursor_r' - 1
+         draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg')
+      ev.code == term::KEY_DOWN && cursor_r' < 12 |
+         cursor_r' = cursor_r' + 1
+         draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg')
+      ev.code == term::KEY_LEFT && cursor_c' > 4 |
+         cursor_c' = cursor_c' - 1
+         draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg')
+      ev.code == term::KEY_RIGHT && cursor_c' < 31 |
+         cursor_c' = cursor_c' + 1
+         draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg')
+      ev.code == term::KEY_ESC | -->
 
-   term::render(t)
+   ev.kind == term::EV_MOUSE |
+      mouse_x' = ev.x
+      mouse_y' = ev.y
+      ev.mouse_act == term::MOUSE_PRESS |
+         mouse_msg' = ++("Mouse Pressed: Button " + str::from_int(ev.mouse_btn) + " at (" + str::from_int(ev.x) + ", " + str::from_int(ev.y) + ")")
+         // If clicked inside canvas, move cursor there
+         ev.x !< 4 && ev.x !> 31 && ev.y !< 5 && ev.y !> 12 |
+            cursor_c' = ev.x - 1
+            cursor_r' = ev.y - 1
+      ev.mouse_act == term::MOUSE_RELEASE |
+         mouse_msg' = ++("Mouse Released at (" + str::from_int(ev.x) + ", " + str::from_int(ev.y) + ")")
+      ev.mouse_act == term::MOUSE_SCROLL_UP |
+         mouse_msg' = ++("Mouse Wheel UP at (" + str::from_int(ev.x) + ", " + str::from_int(ev.y) + ")")
+         cursor_r' > 5 | cursor_r' = cursor_r' - 1
+      ev.mouse_act == term::MOUSE_SCROLL_DOWN |
+         mouse_msg' = ++("Mouse Wheel DOWN at (" + str::from_int(ev.x) + ", " + str::from_int(ev.y) + ")")
+         cursor_r' < 12 | cursor_r' = cursor_r' + 1
+      draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg')
 
-   // Poll key with 50ms timeout
-   k = term::poll_key(50)
-   k.code == term::KEY_CHAR |
-      k.ch == 'q' | -->
-      k.ch == 'h' && cursor_col' > 1 | cursor_col' = cursor_col' - 1
-      k.ch == 'l' && cursor_col' < t.cols - 2 | cursor_col' = cursor_col' + 1
-      k.ch == 'k' && cursor_row' > 4 | cursor_row' = cursor_row' - 1
-      k.ch == 'j' && cursor_row' < t.rows - 4 | cursor_row' = cursor_row' + 1
-   k.code == term::KEY_UP && cursor_row' > 4 | cursor_row' = cursor_row' - 1
-   k.code == term::KEY_DOWN && cursor_row' < t.rows - 4 | cursor_row' = cursor_row' + 1
-   k.code == term::KEY_LEFT && cursor_col' > 1 | cursor_col' = cursor_col' - 1
-   k.code == term::KEY_RIGHT && cursor_col' < t.cols - 2 | cursor_col' = cursor_col' + 1
-   k.code == term::KEY_ESC | -->
+   ev.kind == term::EV_RESIZE |
+      draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg')
 
-   // Clear old cursor position
-   term::grid_set(t.back, cursor_row', cursor_col', ' ', -1, -1, 0)
-
+term::disable_mouse(t)
 term::disable_raw(t)
 term::shutdown(t)
-io::out("Term demo exited successfully.")
+io::out("Term demo exited cleanly.")

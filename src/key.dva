@@ -1,0 +1,100 @@
+// term/src/key.dva — Input event types and key definitions
+
+#public
+   // --- Key Codes ---
+   KEY_NONE       = 0
+   KEY_CHAR       = 1
+   KEY_UP         = 2
+   KEY_DOWN       = 3
+   KEY_LEFT       = 4
+   KEY_RIGHT      = 5
+   KEY_HOME       = 6
+   KEY_END        = 7
+   KEY_PAGE_UP    = 8
+   KEY_PAGE_DOWN  = 9
+   KEY_BACKSPACE  = 10
+   KEY_DELETE     = 11
+   KEY_ENTER      = 12
+   KEY_TAB        = 13
+   KEY_BACKTAB    = 14   // Shift-Tab
+   KEY_ESC        = 15
+   KEY_CTRL       = 16
+   KEY_ALT        = 17
+   KEY_INSERT     = 18
+   KEY_F1         = 19
+   KEY_F2         = 20
+   KEY_F3         = 21
+   KEY_F4         = 22
+   KEY_F5         = 23
+   KEY_F6         = 24
+   KEY_F7         = 25
+   KEY_F8         = 26
+   KEY_F9         = 27
+   KEY_F10        = 28
+   KEY_F11        = 29
+   KEY_F12        = 30
+
+   // --- Modifier Bitmask ---
+   MOD_NONE       = 0
+   MOD_SHIFT      = 1
+   MOD_ALT        = 2
+   MOD_CTRL       = 4
+
+   // --- Mouse Actions & Buttons ---
+   MOUSE_PRESS        = 1
+   MOUSE_RELEASE      = 2
+   MOUSE_DRAG         = 3
+   MOUSE_SCROLL_UP    = 4
+   MOUSE_SCROLL_DOWN  = 5
+
+   MOUSE_BTN_LEFT     = 0
+   MOUSE_BTN_MIDDLE   = 1
+   MOUSE_BTN_RIGHT    = 2
+   MOUSE_BTN_NONE     = 3
+
+   // --- Event Kinds ---
+   EV_NONE        = 0
+   EV_KEY         = 1
+   EV_MOUSE       = 2
+   EV_RESIZE      = 3
+
+   // Unified Event Record
+   #type Event (
+      kind: Int,
+      code: Int,
+      ch: Int,
+      mods: Int,
+      mouse_btn: Int,
+      mouse_act: Int,
+      x: Int,
+      y: Int
+   )
+
+   // Constructor helpers
+   ev_none: () => Event
+   ev_none = !=>
+      Event((EV_NONE, KEY_NONE, 0, MOD_NONE, MOUSE_BTN_NONE, 0, 0, 0))
+
+   ev_key: Int, Int, Int => Event
+   ev_key = code, ch, mods =>
+      Event((EV_KEY, code, ch, mods, MOUSE_BTN_NONE, 0, 0, 0))
+
+   ev_char: Int => Event
+   ev_char = c =>
+      Event((EV_KEY, KEY_CHAR, c, MOD_NONE, MOUSE_BTN_NONE, 0, 0, 0))
+
+   ev_code: Int => Event
+   ev_code = code =>
+      Event((EV_KEY, code, 0, MOD_NONE, MOUSE_BTN_NONE, 0, 0, 0))
+
+   ev_ctrl: Int => Event
+   ev_ctrl = c =>
+      Event((EV_KEY, KEY_CTRL, c, MOD_CTRL, MOUSE_BTN_NONE, 0, 0, 0))
+
+   ev_mouse: Int, Int, Int, Int, Int => Event
+   ev_mouse = act, btn, mods, x, y =>
+      Event((EV_MOUSE, 0, 0, mods, btn, act, x, y))
+
+   ev_resize: Int, Int => Event
+   ev_resize = rows, cols =>
+      Event((EV_RESIZE, 0, 0, MOD_NONE, MOUSE_BTN_NONE, 0, cols, rows))

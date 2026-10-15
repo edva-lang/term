@@ -1,0 +1,103 @@
+// term/src/raw.dva — POSIX tty raw mode, terminal dimensions, and ANSI modes
+
+#use libc
+#use str
+
+#foreign "c"
+   usleep: (usec: Int) => Int
+
+#public
+   // Escape character (ASCII 27)
+   esc: () => String
+   esc = !=> str::from_byte(27)
+
+   // Write string directly to stdout
+   write_raw: String => ()
+   write_raw = s =>
+      libc::write(1, s, ?s)
+
+   // Query terminal rows and columns via TIOCGWINSZ ioctl (0x5413)
+   get_size: () => (Int, Int)
+   get_size = !=>
+      buf = libc::malloc(8)
+      res = libc::ioctl(1, 0x5413, Int(buf))
+      res != 0
+         |
+            libc::free(buf)
+            (24, 80)
+         |
+            row = Int(@[buf u16])
+            col = Int(@[buf + 2 u16])
+            libc::free(buf)
+            r = row < 1 | 24 | row
+            c = col < 1 | 80 | col
+            (r, c)
+
+   // Enable raw mode on stdin
+   enable_raw_termios: Addr, Addr => Int
+   enable_raw_termios = orig, raw =>
+      libc::tcgetattr(0, orig) != 0 | --| -1
+      libc::memcpy(raw, orig, 64)
+      libc::cfmakeraw(raw)
+      libc::tcsetattr(0, 0, raw)
+
+   // Restore canonical mode on stdin
+   disable_raw_termios: Addr => Int
+   disable_raw_termios = orig =>
+      libc::tcsetattr(0, 2, orig)
+
+   // Alternate screen buffer
+   enter_alt_screen: () => ()
+   enter_alt_screen = !=>
+      e = esc!
+      write_raw(e + "[?1049h" + e + "[?25l") // enter alt screen, hide cursor
+
+   exit_alt_screen: () => ()
+   exit_alt_screen = !=>
+      e = esc!
+      write_raw(e + "[?25h" + e + "[?1049l") // show cursor, exit alt screen
+
+   // Cursor visibility
+   hide_cursor: () => ()
+   hide_cursor = !=>
+      e = esc!
+      write_raw(e + "[?25l")
+
+   show_cursor: () => ()
+   show_cursor = !=>
+      e = esc!
+      write_raw(e + "[?25h")
+
+   // Clear screen
+   clear_screen: () => ()
+   clear_screen = !=>
+      e = esc!
+      write_raw(e + "[2J" + e + "[H")
+
+   // Move cursor to (row, col) (1-indexed)
+   move_cursor: Int, Int => ()
+   move_cursor = r, c =>
+      e = esc!
+      write_raw(e + "[" + str::from_int(r) + ";" + str::from_int(c) + "H")
+
+   // Mouse tracking (SGR 1006 extended mode + button/drag tracking 1000/1002)
+   enable_mouse: () => ()
+   enable_mouse = !=>
+      e = esc!
+      write_raw(e + "[?1000h" + e + "[?1002h" + e + "[?1006h")
+
+   disable_mouse: () => ()
+   disable_mouse = !=>
+      e = esc!
+      write_raw(e + "[?1006l" + e + "[?1002l" + e + "[?1000l")
+
+   // Bracketed paste mode
+   enable_bracketed_paste: () => ()
+   enable_bracketed_paste = !=>
+      e = esc!
+      write_raw(e + "[?2004h")
+
+   disable_bracketed_paste: () => ()
+   disable_bracketed_paste = !=>
+      e = esc!
+      write_raw(e + "[?2004l")

@@ -1,0 +1,275 @@
+// term/src/grid.dva — Cell Grid Matrix, UTF-8 rune renderer, and Drawing Primitives
+
+#use libc
+#use str
+#use style
+#use raw
+
+#public
+   CELL_SIZE = 32
+
+   #type Grid (
+      rows: Int,
+      cols: Int,
+      cells: Addr
+   )
+
+   // Append Unicode codepoint as UTF-8 bytes to Builder
+   append_rune: Builder, Int => ()
+   append_rune = b, r =>
+      r < 0x80 |
+         b += r
+         --|
+      r < 0x800 |
+         b += (0xC0 .|. (r .>. 6))
+         b += (0x80 .|. (r .&. 0x3F))
+         --|
+      r < 0x10000 |
+         b += (0xE0 .|. (r .>. 12))
+         b += (0x80 .|. ((r .>. 6) .&. 0x3F))
+         b += (0x80 .|. (r .&. 0x3F))
+         --|
+      b += (0xF0 .|. (r .>. 18))
+      b += (0x80 .|. ((r .>. 12) .&. 0x3F))
+      b += (0x80 .|. ((r .>. 6) .&. 0x3F))
+      b += (0x80 .|. (r .&. 0x3F))
+
+   // Allocate a new grid of rows x cols
+   grid_new: Int, Int => Grid
+   grid_new = rows, cols =>
+      r = rows < 1 | 1 | rows
+      c = cols < 1 | 1 | cols
+      total_bytes = r * c * CELL_SIZE
+      buf = libc::malloc(total_bytes)
+      libc::memset(buf, 0, total_bytes)
+      (r * c) @ i =>
+         cp = buf + i * CELL_SIZE
+         @[cp] = 32           // ' '
+         @[cp + 8] = -1       // default fg
+         @[cp + 16] = -1      // default bg
+         @[cp + 24] = 0       // default attr
+      Grid((r, c, buf))
+
+   grid_free: Grid => ()
+   grid_free = g =>
+      libc::free(g.cells)
+
+   grid_clear: Grid => ()
+   grid_clear = g =>
+      total = g.rows * g.cols
+      total @ i =>
+         cp = g.cells + i * CELL_SIZE
+         @[cp] = 32
+         @[cp + 8] = -1
+         @[cp + 16] = -1
+         @[cp + 24] = 0
+
+   grid_set: Grid, Int, Int, Int, Int, Int, Int => ()
+   grid_set = g, row, col, ch, fg, bg, attr =>
+      row < 0 || row !< g.rows || col < 0 || col !< g.cols | --|
+      cp = g.cells + (row * g.cols + col) * CELL_SIZE
+      @[cp] = ch
+      @[cp + 8] = fg
+      @[cp + 16] = bg
+      @[cp + 24] = attr
+
+   grid_get: Grid, Int, Int => (Int, Int, Int, Int)
+   grid_get = g, row, col =>
+      row < 0 || row !< g.rows || col < 0 || col !< g.cols | --| (32, -1, -1, 0)
+      cp = g.cells + (row * g.cols + col) * CELL_SIZE
+      (Int(@[cp Int]), Int(@[cp + 8 Int]), Int(@[cp + 16 Int]), Int(@[cp + 24 Int]))
+
+   // Fill rectangular region
+   grid_fill_rect: Grid, Int, Int, Int, Int, Int, Int, Int, Int => ()
+   grid_fill_rect = g, start_r, start_c, h, w, ch, fg, bg, attr =>
+      h @ dr =>
+         r = start_r + dr
+         r !< g.rows | -->
+         r !< 0 |
+            w @ dc =>
+               c = start_c + dc
+               c !< g.cols | -->
+               c !< 0 |
+                  grid_set(g, r, c, ch, fg, bg, attr)
+
+   // Write string into grid
+   grid_put_str: Grid, Int, Int, String, Int, Int, Int => ()
+   grid_put_str = g, row, col, text, fg, bg, attr =>
+      row < 0 || row !< g.rows | --|
+      len = ?text
+      c' = col
+      len @ i =>
+         c' !< g.cols | -->
+         c' !< 0
+            |
+               ch = Int(text(i))
+               grid_set(g, row, c', ch, fg, bg, attr)
+         c' = c' + 1
+
+   // Write string clipped to maximum visible width
+   grid_put_str_clipped: Grid, Int, Int, String, Int, Int, Int, Int => ()
+   grid_put_str_clipped = g, row, col, text, max_w, fg, bg, attr =>
+      row < 0 || row !< g.rows || max_w !> 0 | --|
+      len = ?text
+      limit = len < max_w | len | max_w
+      c' = col
+      limit @ i =>
+         c' !< g.cols | -->
+         c' !< 0
+            |
+               ch = Int(text(i))
+               grid_set(g, row, c', ch, fg, bg, attr)
+         c' = c' + 1
+
+   ALIGN_LEFT   = 0
+   ALIGN_CENTER = 1
+   ALIGN_RIGHT  = 2
+
+   // Write string aligned within fixed width box
+   grid_put_str_aligned: Grid, Int, Int, String, Int, Int, Int, Int, Int => ()
+   grid_put_str_aligned = g, row, col, text, width, align, fg, bg, attr =>
+      len = ?text
+      start_col = align == ALIGN_CENTER
+         | col + (width - len) / 2
+         | align == ALIGN_RIGHT
+            | col + (width - len)
+            | col
+      grid_put_str_clipped(g, row, start_col, text, width, fg, bg, attr)
+
+   // Draw horizontal line
+   grid_draw_hline: Grid, Int, Int, Int, Int, Int, Int, Int => ()
+   grid_draw_hline = g, row, start_c, len, ch, fg, bg, attr =>
+      len @ dc =>
+         grid_set(g, row, start_c + dc, ch, fg, bg, attr)
+
+   // Draw vertical line
+   grid_draw_vline: Grid, Int, Int, Int, Int, Int, Int, Int => ()
+   grid_draw_vline = g, start_r, col, len, ch, fg, bg, attr =>
+      len @ dr =>
+         grid_set(g, start_r + dr, col, ch, fg, bg, attr)
+
+   // Draw border box with optional title
+   grid_draw_box: Grid, Int, Int, Int, Int, Int, Int, Int => ()
+   grid_draw_box = g, r, c, h, w, border_style, fg, bg =>
+      h < 2 || w < 2 | --|
+      chars = style::border_chars(border_style)
+      tl = chars(0)
+      tr = chars(1)
+      bl = chars(2)
+      br = chars(3)
+      horiz = chars(4)
+      vert = chars(5)
+
+      // Corners
+      grid_set(g, r, c, tl, fg, bg, 0)
+      grid_set(g, r, c + w - 1, tr, fg, bg, 0)
+      grid_set(g, r + h - 1, c, bl, fg, bg, 0)
+      grid_set(g, r + h - 1, c + w - 1, br, fg, bg, 0)
+
+      // Top and bottom horizontal lines
+      (w - 2) @ i =>
+         grid_set(g, r, c + 1 + i, horiz, fg, bg, 0)
+         grid_set(g, r + h - 1, c + 1 + i, horiz, fg, bg, 0)
+
+      // Left and right vertical lines
+      (h - 2) @ j =>
+         grid_set(g, r + 1 + j, c, vert, fg, bg, 0)
+         grid_set(g, r + 1 + j, c + w - 1, vert, fg, bg, 0)
+
+   // Draw box with a title embedded in the top border
+   grid_draw_titled_box: Grid, Int, Int, Int, Int, Int, String, Int, Int, Int => ()
+   grid_draw_titled_box = g, r, c, h, w, border_style, title, fg, bg, title_fg =>
+      grid_draw_box(g, r, c, h, w, border_style, fg, bg)
+      tlen = ?title
+      tlen > 0 && w > tlen + 4 |
+         grid_put_str(g, r, c + 2, " " + title + " ", title_fg, bg, style::ATTR_BOLD)
+
+   // Render diff between back and front buffer matrices
+   render_diff: Grid, Grid, Int, Int => ()
+   render_diff = front, back, rows, cols =>
+      front_buf = front.cells
+      back_buf = back.cells
+
+      cur_fg' = -2
+      cur_bg' = -2
+      cur_attr' = -1
+      cur_r' = -1
+      cur_c' = -1
+
+      e = raw::esc!
+      out = {8192}
+
+      rows @ r =>
+         cols @ c =>
+            off = (r * cols + c) * CELL_SIZE
+            fp = front_buf + off
+            bp = back_buf + off
+
+            f_ch = Int(@[fp Int])
+            b_ch = Int(@[bp Int])
+            f_fg = Int(@[fp + 8 Int])
+            b_fg = Int(@[bp + 8 Int])
+            f_bg = Int(@[fp + 16 Int])
+            b_bg = Int(@[bp + 16 Int])
+            f_at = Int(@[fp + 24 Int])
+            b_at = Int(@[bp + 24 Int])
+
+            // If cell changed, emit update
+            f_ch != b_ch || f_fg != b_fg || f_bg != b_bg || f_at != b_at
+               |
+                  // Only move cursor if not already at (r, c)
+                  r != cur_r' || c != cur_c'
+                     |
+                        out += e + "[" + str::from_int(r + 1) + ";" + str::from_int(c + 1) + "H"
+                        cur_r' = r
+                        cur_c' = c
+
+                  // Update attributes if changed
+                  b_at != cur_attr'
+                     |
+                        out += e + "[0m" // reset
+                        cur_fg' = -2
+                        cur_bg' = -2
+                        (b_at .&. style::ATTR_BOLD) != 0      | out += e + "[1m"
+                        (b_at .&. style::ATTR_DIM) != 0       | out += e + "[2m"
+                        (b_at .&. style::ATTR_ITALIC) != 0    | out += e + "[3m"
+                        (b_at .&. style::ATTR_UNDERLINE) != 0 | out += e + "[4m"
+                        (b_at .&. style::ATTR_REVERSE) != 0   | out += e + "[7m"
+                        cur_attr' = b_at
+
+                  // Update FG color if changed
+                  b_fg != cur_fg'
+                     |
+                        b_fg == -1
+                           | out += e + "[39m"
+                           |
+                              red = style::red(b_fg)
+                              green = style::green(b_fg)
+                              blue = style::blue(b_fg)
+                              out += e + "[38;2;" + str::from_int(red) + ";" + str::from_int(green) + ";" + str::from_int(blue) + "m"
+                        cur_fg' = b_fg
+
+                  // Update BG color if changed
+                  b_bg != cur_bg'
+                     |
+                        b_bg == -1
+                           | out += e + "[49m"
+                           |
+                              red = style::red(b_bg)
+                              green = style::green(b_bg)
+                              blue = style::blue(b_bg)
+                              out += e + "[48;2;" + str::from_int(red) + ";" + str::from_int(green) + ";" + str::from_int(blue) + "m"
+                        cur_bg' = b_bg
+
+                  // Emit character (multibyte UTF-8 aware)
+                  append_rune(out, b_ch)
+                  cur_c' = cur_c' + 1
+
+                  // Sync front cell with back cell
+                  @[fp] = b_ch
+                  @[fp + 8] = b_fg
+                  @[fp + 16] = b_bg
+                  @[fp + 24] = b_at
+
+      // Flush buffer to stdout
+      ?out > 0 | raw::write_raw(+out)
