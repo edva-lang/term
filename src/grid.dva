@@ -96,30 +96,27 @@
    grid_put_str: Grid, Int, Int, String, Int, Int, Int => ()
    grid_put_str = g, row, col, text, fg, bg, attr =>
       row < 0 || row !< g.rows | --|
-      len = ?text
       c' = col
-      len @ i =>
+      text @@ r =>
          c' !< g.cols | -->
          c' !< 0
             |
-               ch = Int(text(i))
-               grid_set(g, row, c', ch, fg, bg, attr)
+               grid_set(g, row, c', Int(r), fg, bg, attr)
          c' = c' + 1
 
    // Write string clipped to maximum visible width
    grid_put_str_clipped: Grid, Int, Int, String, Int, Int, Int, Int => ()
    grid_put_str_clipped = g, row, col, text, max_w, fg, bg, attr =>
       row < 0 || row !< g.rows || max_w !> 0 | --|
-      len = ?text
-      limit = len < max_w | len | max_w
       c' = col
-      limit @ i =>
-         c' !< g.cols | -->
+      written' = 0
+      text @@ r =>
+         written' !< max_w || c' !< g.cols | -->
          c' !< 0
             |
-               ch = Int(text(i))
-               grid_set(g, row, c', ch, fg, bg, attr)
+               grid_set(g, row, c', Int(r), fg, bg, attr)
          c' = c' + 1
+         written' = written' + 1
 
    ALIGN_LEFT   = 0
    ALIGN_CENTER = 1
@@ -128,7 +125,7 @@
    // Write string aligned within fixed width box
    grid_put_str_aligned: Grid, Int, Int, String, Int, Int, Int, Int, Int => ()
    grid_put_str_aligned = g, row, col, text, width, align, fg, bg, attr =>
-      len = ?text
+      len = ??text
       start_col = align == ALIGN_CENTER
          | col + (width - len) / 2
          | align == ALIGN_RIGHT
@@ -180,7 +177,7 @@
    grid_draw_titled_box: Grid, Int, Int, Int, Int, Int, String, Int, Int, Int => ()
    grid_draw_titled_box = g, r, c, h, w, border_style, title, fg, bg, title_fg =>
       grid_draw_box(g, r, c, h, w, border_style, fg, bg)
-      tlen = ?title
+      tlen = ??title
       tlen > 0 && w > tlen + 4 |
          grid_put_str(g, r, c + 2, " " + title + " ", title_fg, bg, style::ATTR_BOLD)
 
