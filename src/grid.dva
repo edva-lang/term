@@ -29,8 +29,15 @@
          cells += Cell((32, -1, -1, 0))
       Grid((r, c, cells))
 
-   free: Grid => ()
-   free = g => --|
+   // Allocate a sentinel grid where every cell is mismatched
+   new_invalid: Int, Int => Grid
+   new_invalid = rows, cols =>
+      r = rows < 1 | 1 | rows
+      c = cols < 1 | 1 | cols
+      cells = (Cell){}
+      (r * c) @ i =>
+         cells += Cell((0, -999, -999, 999))
+      Grid((r, c, cells))
 
    clear: Grid => ()
    clear = g =>
@@ -227,5 +234,69 @@
                   // Sync front cell with back cell
                   front.cells(off) = bc
 
-      // Flush buffer to stdout
-      ?out > 0 | raw::write_raw(+out)
+      // Flush buffer to stdout with synchronized frame update
+      ?out > 0
+         |
+            raw::begin_sync!
+            raw::write_raw(+out)
+            raw::end_sync!
+
+   // --- Viewport / Subgrid Window Layout Primitives ---
+   #type Window (
+      grid: Grid,
+      r: Int,
+      c: Int,
+      h: Int,
+      w: Int
+   )
+
+   win_new: Grid, Int, Int, Int, Int => Window
+   win_new = g, r, c, h, w =>
+      Window((g, r, c, h, w))
+
+   win_set: Window, Int, Int, Int, Int, Int, Int => ()
+   win_set = win, wr, wc, ch, fg, bg, attr =>
+      wr < 0 || wr !< win.h || wc < 0 || wc !< win.w | --|
+      set(win.grid, win.r + wr, win.c + wc, ch, fg, bg, attr)
+
+   win_fill_rect: Window, Int, Int, Int, Int, Int, Int, Int, Int => ()
+   win_fill_rect = win, wr, wc, h, w, ch, fg, bg, attr =>
+      h @ dr =>
+         w @ dc =>
+            win_set(win, wr + dr, wc + dc, ch, fg, bg, attr)
+
+   win_put_str: Window, Int, Int, String, Int, Int, Int => ()
+   win_put_str = win, wr, wc, text, fg, bg, attr =>
+      wr < 0 || wr !< win.h | --|
+      avail = win.w - wc
+      avail !> 0 | --|
+      put_str_clipped(win.grid, win.r + wr, win.c + wc, text, avail, fg, bg, attr)
+
+   win_box: Window, Int, Int, Int, Int, Int, Int, Int => ()
+   win_box = win, wr, wc, h, w, style, fg, bg =>
+      chars = style::border_chars(style)
+      tl = chars(0)
+      tr = chars(1)
+      bl = chars(2)
+      br = chars(3)
+      hz = chars(4)
+      vt = chars(5)
+      win_set(win, wr, wc, tl, fg, bg, 0)
+      win_set(win, wr, wc + w - 1, tr, fg, bg, 0)
+      win_set(win, wr + h - 1, wc, bl, fg, bg, 0)
+      win_set(win, wr + h - 1, wc + w - 1, br, fg, bg, 0)
+      (w - 2) @ col =>
+         win_set(win, wr, wc + 1 + col, hz, fg, bg, 0)
+         win_set(win, wr + h - 1, wc + 1 + col, hz, fg, bg, 0)
+      (h - 2) @ row =>
+         win_set(win, wr + 1 + row, wc, vt, fg, bg, 0)
+         win_set(win, wr + 1 + row, wc + w - 1, vt, fg, bg, 0)
+
+   win_titled_box: Window, Int, Int, Int, Int, Int, String, Int, Int, Int => ()
+   win_titled_box = win, wr, wc, h, w, style, title, fg, bg, title_fg =>
+      win_box(win, wr, wc, h, w, style, fg, bg)
+      t_len = ?title
+      t_len > 0 && w > 4 |
+         avail = w - 4
+         avail !< t_len |
+            win_put_str(win, wr, wc + 2, " " + title + " ", title_fg, bg, style::ATTR_BOLD)

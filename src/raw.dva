@@ -87,3 +87,65 @@
    disable_bracketed_paste: () => ()
    disable_bracketed_paste = !=>
       write_raw("\e[?2004l")
+
+   // Hardware cursor shape (DECSCUSR)
+   CURSOR_DEFAULT          = 0
+   CURSOR_BLOCK            = 1 // blinking block
+   CURSOR_BLOCK_STEADY     = 2 // steady block
+   CURSOR_UNDERLINE        = 3 // blinking underline
+   CURSOR_UNDERLINE_STEADY = 4 // steady underline
+   CURSOR_BEAM             = 5 // blinking beam
+   CURSOR_BEAM_STEADY      = 6 // steady beam
+
+   set_cursor_shape: Int => ()
+   set_cursor_shape = shape =>
+      write_raw("\e[" + str::from_int(shape) + " q")
+
+   // Synchronized output (atomic frame updates: Mode 2026)
+   begin_sync: () => ()
+   begin_sync = !=>
+      write_raw("\e[?2026h")
+
+   end_sync: () => ()
+   end_sync = !=>
+      write_raw("\e[?2026l")
+
+   // Terminal window/tab title (OSC 0)
+   set_title: String => ()
+   set_title = title =>
+      write_raw("\e]0;" + title + "\a")
+
+   // Copy text to system clipboard via OSC 52
+   copy_to_clipboard: String => ()
+   copy_to_clipboard = text =>
+      b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+      n = ?text
+      n == 0 | --|
+      out = {((n + 2) / 3) * 4 + 16}
+      out += "\e]52;c;"
+      i' = 0
+      n / 3 @ chunk_idx =>
+         b0 = text(i')
+         b1 = text(i' + 1)
+         b2 = text(i' + 2)
+         i' = i' + 3
+         out += b64(b0 .>. 2)
+         out += b64(((b0 .&. 3) .<. 4) .|. (b1 .>. 4))
+         out += b64(((b1 .&. 15) .<. 2) .|. (b2 .>. 6))
+         out += b64(b2 .&. 63)
+      rem = n - i'
+      rem == 1 |
+         b0 = text(i')
+         out += b64(b0 .>. 2)
+         out += b64((b0 .&. 3) .<. 4)
+         out += '='
+         out += '='
+      rem == 2 |
+         b0 = text(i')
+         b1 = text(i' + 1)
+         out += b64(b0 .>. 2)
+         out += b64(((b0 .&. 3) .<. 4) .|. (b1 .>. 4))
+         out += b64((b1 .&. 15) .<. 2)
+         out += '='
+      out += "\a"
+      write_raw(+out)

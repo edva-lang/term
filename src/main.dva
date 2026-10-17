@@ -3,139 +3,28 @@
 #use io
 #use term
 #use str
+#use utf
 
-lerp_ch: Int, Int, Int, Int => Int
-lerp_ch = a, b, step, total =>
-   tot = total < 1 | 1 | total
-   a + ((b - a) * step) / tot
+get_palette: Int => (term::Palette, String)
+get_palette = idx =>
+   (idx % 9)
+      [0] (term::CATPPUCCIN, "Catppuccin")
+      [1] (term::MONOKAI, "Monokai")
+      [2] (term::NORD, "Nord")
+      [3] (term::TOKYONIGHT, "Tokyo Night")
+      [4] (term::SOLARIZED_DARK, "Solarized Dark")
+      [5] (term::GRUVBOX_DARK, "Gruvbox Dark")
+      [6] (term::ONE_DARK, "One Dark")
+      [7] (term::DRACULA, "Dracula")
+      | (term::ROSE_PINE, "Rose Pine")
 
-lerp_rgb: Int, Int, Int, Int => Int
-lerp_rgb = c1, c2, step, total =>
-   r1 = (c1 .>. 16) .&. 255
-   g1 = (c1 .>. 8) .&. 255
-   b1 = c1 .&. 255
-   r2 = (c2 .>. 16) .&. 255
-   g2 = (c2 .>. 8) .&. 255
-   b2 = c2 .&. 255
-   term::rgb(lerp_ch(r1, r2, step, total), lerp_ch(g1, g2, step, total), lerp_ch(b1, b2, step, total))
-
-hue_rgb: Int => Int
-hue_rgb = h =>
-   h_norm = ((h % 1536) + 1536) % 1536
-   seg = h_norm / 256
-   pos = h_norm % 256
-   seg
-      [0] term::rgb(255, pos, 0)
-      [1] term::rgb(255 - pos, 255, 0)
-      [2] term::rgb(0, 255, pos)
-      [3] term::rgb(0, 255 - pos, 255)
-      [4] term::rgb(pos, 0, 255)
-      | term::rgb(255, 0, 255 - pos)
-
-sunset_stop: Int => Int
-sunset_stop = idx =>
-   idx
-      [0] 0x2c003e
-      [1] 0x6e0e64
-      [2] 0xb01962
-      [3] 0xe03b41
-      [4] 0xf06b24
-      [5] 0xf6ad29
-      |   0xffe072
-
-aurora_stop: Int => Int
-aurora_stop = idx =>
-   idx
-      [0] 0x040d21
-      [1] 0x082e54
-      [2] 0x0e637a
-      [3] 0x149a80
-      [4] 0x2ec686
-      [5] 0x76f07c
-      |   0xcbffa8
-
-cyber_stop: Int => Int
-cyber_stop = idx =>
-   idx
-      [0] 0x28023d
-      [1] 0x5a095a
-      [2] 0x9e0b74
-      [3] 0xe80a89
-      [4] 0xff4f79
-      [5] 0xff9248
-      |   0x00f5d4
-
-lerp_stops: (Int => Int), Int, Int, Int => Int
-lerp_stops = stop_fn, num_stops, step, total =>
-   tot = total < 1 | 1 | total
-   num_segs = num_stops - 1
-   scaled = (step * num_segs * 1000) / tot
-   seg = scaled / 1000
-   seg_idx = seg !< num_segs | num_segs - 1 | seg
-   rem = scaled - seg_idx * 1000
-   c1 = stop_fn(seg_idx)
-   c2 = stop_fn(seg_idx + 1)
-   lerp_rgb(c1, c2, rem, 1000)
-
-put_gradient_str: term::Term, Int, Int, String, Int, Int, Int => ()
-put_gradient_str = tm, r, c, text, c1, c2, attr =>
-   tot = ??text
-   tot < 1 | --|
-   idx' = 0
-   text @@ ch =>
-      fg = lerp_rgb(c1, c2, idx', tot - 1)
-      term::set_cell(tm, r, c + idx', Int(ch), fg, -1, attr)
-      idx' = idx' + 1
-
-put_rainbow_str: term::Term, Int, Int, String, Int, Int => ()
-put_rainbow_str = tm, r, c, text, phase, attr =>
-   tot = ??text
-   tot < 1 | --|
-   idx' = 0
-   text @@ ch =>
-      fg = hue_rgb(phase + (idx' * 1536) / tot)
-      term::set_cell(tm, r, c + idx', Int(ch), fg, -1, attr)
-      idx' = idx' + 1
-
-ansi_color: Int => Int
-ansi_color = idx =>
-   idx
-      [0]  0x000000
-      [1]  0xcd3131
-      [2]  0x0dbc79
-      [3]  0xe5e510
-      [4]  0x2472c8
-      [5]  0xbc3fbc
-      [6]  0x11a8cd
-      [7]  0xe5e5e5
-      [8]  0x666666
-      [9]  0xf14c4c
-      [10] 0x23d18b
-      [11] 0xf5f543
-      [12] 0x3b8eea
-      [13] 0xd670d6
-      [14] 0x29b8db
-      | 0xffffff
-
-ansi_name: Int => String
-ansi_name = idx =>
-   idx
-      [0]  "Blk"
-      [1]  "Red"
-      [2]  "Grn"
-      [3]  "Yel"
-      [4]  "Blu"
-      [5]  "Mag"
-      [6]  "Cya"
-      [7]  "Whi"
-      [8]  "BBlk"
-      [9]  "BRed"
-      [10] "BGrn"
-      [11] "BYel"
-      [12] "BBlu"
-      [13] "BMag"
-      [14] "BCya"
-      | "BWhi"
+get_cursor_shape_info: Int => (Int, String)
+get_cursor_shape_info = idx =>
+   (idx % 4)
+      [0] (term::CURSOR_BLOCK, "Block (Blink)")
+      [1] (term::CURSOR_BLOCK_STEADY, "Block (Steady)")
+      [2] (term::CURSOR_BEAM, "Beam (Insert)")
+      | (term::CURSOR_UNDERLINE, "Underline")
 
 PAD_R = 4
 PAD_C = 3
@@ -150,141 +39,157 @@ PAD_MAX_C = 27
 t = term::init!
 term::enable_raw(t)
 term::enable_mouse(t)
+term::show_cursor(t)
 
 cursor_r' = 6
 cursor_c' = 8
 mouse_x' = 0
 mouse_y' = 0
 tick' = 0
+pal_idx' = 0
+cur_shape_idx' = 0
+last_input_str' = ++"None"
+last_input_cp' = 0
 mouse_msg' = ++"Mouse: None"
-status_msg' = ++"Use Arrows/hjkl, Mouse Click/Drag/Scroll, or 'q' to exit"
 
-draw_ui: term::Term, Int, Int, String, String, Int => ()
-draw_ui = tm, cur_r, cur_c, stat_msg, m_msg, phase =>
+draw_ui: term::Term, Int, Int, String, String, Int, Int, Int, String, Int => ()
+draw_ui = tm, cur_r, cur_c, stat_msg, m_msg, phase, pal_i, shape_i, in_str, in_cp =>
    term::clear(tm)
    r = tm.rows
    c = tm.cols
 
-   // Outer window box with rounded corners
-   term::draw_titled_box(tm, 0, 0, r, c, term::BORDER_ROUNDED, "", 0x585b70, -1, 0xcdd6f4)
+   pal_info = get_palette(pal_i)
+   pal = pal_info.0
+   pal_name = pal_info.1
 
-   // Title with per-character smooth gradient across every letter
-   c > 45 |
-      put_gradient_str(tm, 0, 3, " term v0.1.0 — 24-bit TrueColor Diff Engine ", 0xf9e2af, 0x89dceb, term::ATTR_BOLD)
+   shape_info = get_cursor_shape_info(shape_i)
+   cur_shape = shape_info.0
+   shape_name = shape_info.1
+   term::set_cursor_shape(tm, cur_shape)
 
-   // Header row
+   // Outer window box themed by active palette
+   term::draw_titled_box(tm, 0, 0, r, c, term::BORDER_ROUNDED, "", pal.border, pal.bg, pal.fg)
+
+   // Title & Palette Name
+   title = " term v1.2.0 — Theme: [" + pal_name + "] "
+   term::put_str(tm, 0, 3, title, pal.blue, pal.bg, term::ATTR_BOLD)
+   term::set_title(tm, "term — " + pal_name)
+
+   // Header row: coordinates & shortcuts
    coord = "Cursor: (" + str::from_int(cur_r) + ", " + str::from_int(cur_c) + ") | Screen: " + str::from_int(r) + "x" + str::from_int(c)
-   term::put_str(tm, 2, 3, coord, 0xfab387, -1, 0)
-   c > 50 |
-      put_gradient_str(tm, 2, c - 34, "Smooth Micro-Step Gradients", 0xa6e3a1, 0x89b4fa, term::ATTR_BOLD)
+   term::put_str(tm, 2, 3, coord, pal.yellow, pal.bg, 0)
+   c > 65 |
+      term::put_str(tm, 2, c - 45, "[p] Switch Theme  [c] Cursor Shape", pal.cyan, pal.bg, term::ATTR_BOLD)
 
-   // Left Panel: Interactive Mouse Test Pad (rows 4..13, width 26)
-   term::draw_titled_box(tm, PAD_R, PAD_C, PAD_H, PAD_W, term::BORDER_SINGLE, "Mouse Test Pad", 0x585b70, -1, 0xcdd6f4)
-   term::put_str(tm, 5, 5, "Arrows/hjkl : Move *", 0xa6adc8, -1, 0)
-   term::put_str(tm, 6, 5, "Click/Drag  : Jump", 0xa6adc8, -1, 0)
-   term::put_str(tm, 7, 5, "Scroll Wheel: Up/Dn", 0xa6adc8, -1, 0)
-   term::put_str(tm, 9, 5, "Press 'q'   : Exit", 0xf38ba8, -1, term::ATTR_BOLD)
+   // Left Panel: Interactive Mouse & Cursor Pad (rows 4..13, width 26)
+   term::draw_titled_box(tm, PAD_R, PAD_C, PAD_H, PAD_W, term::BORDER_SINGLE, "Cursor Pad", pal.border, pal.bg, pal.fg)
+   term::put_str(tm, 5, 5, "Arrows/hjkl : Move", pal.muted, pal.bg, 0)
+   term::put_str(tm, 6, 5, "Click/Drag  : Jump", pal.muted, pal.bg, 0)
+   term::put_str(tm, 7, 5, "Wheel Up/Dn : Step", pal.muted, pal.bg, 0)
+   term::put_str(tm, 8, 5, "Shape: " + shape_name, pal.green, pal.bg, 0)
+   term::put_str(tm, 10, 5, "Press 'q' to exit", pal.red, pal.bg, term::ATTR_BOLD)
 
-   // Active cursor marker inside pad
-   term::set_cell(tm, cur_r, cur_c, '*', 0xf38ba8, 0x313244, term::ATTR_BOLD)
-
-   // Right Panel: 24-bit TrueColor spectrum and gradients (rows 4..13)
+   // Middle/Right Panel: Palette Preview & Subgrid Window Viewport (rows 4..13)
    c > 33 |
       rp_w = c - 34
-      term::draw_titled_box(tm, 4, 31, 10, rp_w, term::BORDER_SINGLE, "TrueColor Gradients", 0x585b70, -1, 0xcdd6f4)
-      spec_w = rp_w - 4
-      spec_w > 8 |
-         // Row 5 & 6: Continuous Hue Wave where EVERY character changes color
-         term::put_str(tm, 5, 33, "Continuous Hue Wave:", 0xcba6f7, -1, 0)
-         spec_w @ x =>
-            col_rgb = hue_rgb(phase * 4 + (x * 1536) / spec_w)
-            term::set_cell(tm, 6, 33 + x, 0x2588, col_rgb, -1, 0)
+      rp_w > 12 |
+         // Subgrid Window demonstrating local coordinates & boundary clipping
+         win_h = 10
+         win_w = rp_w < 44 | rp_w | 44
+         win = term::create_window(tm, 4, 31, win_h, win_w)
+         grid::win_titled_box(win, 0, 0, win_h, win_w, term::BORDER_ROUNDED, "Subgrid Viewport (" + pal_name + ")", pal.purple, pal.bg, pal.fg)
 
-         // Row 7 & 8: Multi-stop Sunset and Aurora Gradients
-         term::put_str(tm, 7, 33, "Sunset & Aurora Horizons:", 0xfab387, -1, 0)
-         half = spec_w / 2
-         half @ x =>
-            s_col = lerp_stops(sunset_stop, 7, x, half)
-            a_col = lerp_stops(aurora_stop, 7, x, half)
-            term::set_cell(tm, 8, 33 + x, 0x2588, s_col, -1, 0)
-            term::set_cell(tm, 8, 33 + half + x, 0x2588, a_col, -1, 0)
+         // Palette swatches inside the subgrid window
+         grid::win_put_str(win, 2, 2, "Neutrals:", pal.fg, pal.bg, term::ATTR_BOLD)
+         grid::win_fill_rect(win, 3, 2, 1, 5, 0x2588, pal.bg, pal.surface, 0)
+         grid::win_fill_rect(win, 3, 8, 1, 5, 0x2588, pal.surface, pal.bg, 0)
+         grid::win_fill_rect(win, 3, 14, 1, 5, 0x2588, pal.border, pal.bg, 0)
+         grid::win_fill_rect(win, 3, 20, 1, 5, 0x2588, pal.muted, pal.bg, 0)
+         grid::win_fill_rect(win, 3, 26, 1, 5, 0x2588, pal.fg, pal.bg, 0)
 
-         // Row 9 & 10: Per-character text gradient strings
-         term::put_str(tm, 9, 33, "Per-Character Text Gradient:", 0x89dceb, -1, 0)
-         put_gradient_str(tm, 10, 33, "✦ Every single glyph changes color ever so slightly ✦", 0xf38ba8, 0x89dceb, term::ATTR_BOLD)
+         grid::win_put_str(win, 5, 2, "Accents:", pal.fg, pal.bg, term::ATTR_BOLD)
+         grid::win_fill_rect(win, 6, 2, 1, 4, 0x2588, pal.red, pal.bg, 0)
+         grid::win_fill_rect(win, 6, 7, 1, 4, 0x2588, pal.orange, pal.bg, 0)
+         grid::win_fill_rect(win, 6, 12, 1, 4, 0x2588, pal.yellow, pal.bg, 0)
+         grid::win_fill_rect(win, 6, 17, 1, 4, 0x2588, pal.green, pal.bg, 0)
+         grid::win_fill_rect(win, 6, 22, 1, 4, 0x2588, pal.cyan, pal.bg, 0)
+         grid::win_fill_rect(win, 6, 27, 1, 4, 0x2588, pal.blue, pal.bg, 0)
+         grid::win_fill_rect(win, 6, 32, 1, 4, 0x2588, pal.purple, pal.bg, 0)
 
-         // Row 11: Rainbow flowing text
-         put_rainbow_str(tm, 11, 33, "Smooth continuous spectrum across UTF-8 text strings", phase * 3, 0)
+         // Color blend demonstration
+         blend_demo = "Blend Red->Blue: "
+         grid::win_put_str(win, 8, 2, blend_demo, pal.muted, pal.bg, 0)
+         16 @ bi =>
+            b_col = term::blend(pal.red, pal.blue, (bi * 100) / 15)
+            grid::win_set(win, 8, 19 + bi, 0x2588, b_col, pal.bg, 0)
 
-         // Row 12: Inverted gradient background with crisp foreground text
-         bg_w = spec_w < 42 | spec_w | 42
-         bg_txt = "  TrueColor 24-bit Micro-Step Engine  "
-         bg_len = ??bg_txt
-         idx_b' = 0
-         bg_txt @@ ch =>
-            bg_col = lerp_stops(cyber_stop, 7, idx_b', bg_len)
-            term::set_cell(tm, 12, 33 + idx_b', Int(ch), 0x11111b, bg_col, term::ATTR_BOLD)
-            idx_b' = idx_b' + 1
-
-   // Bottom Panel: Standard 16 ANSI Palette and Text Attributes (rows 15..r-4)
+   // Lower Panel: Multi-byte UTF-8 Input Tester (rows 15..19)
    r > 19 |
-      term::put_str(tm, 14, 3, "Standard 16 ANSI Palette:", 0xcdd6f4, -1, term::ATTR_BOLD)
-      8 @ a =>
-         col_x = 3 + a * 9
-         col_x + 8 < c |
-            term::put_str(tm, 15, col_x, "██", ansi_color(a), -1, 0)
-            term::put_str(tm, 15, col_x + 3, ansi_name(a), ansi_color(a), -1, 0)
-            term::put_str(tm, 16, col_x, "██", ansi_color(a + 8), -1, 0)
-            term::put_str(tm, 16, col_x + 3, ansi_name(a + 8), ansi_color(a + 8), -1, 0)
-
-   r > 21 |
-      term::put_str(tm, 18, 3, "Text Attributes:", 0xa6adc8, -1, 0)
-      term::put_str(tm, 18, 20, "Normal", 0xcdd6f4, -1, term::ATTR_NONE)
-      term::put_str(tm, 18, 28, "Bold", 0xf38ba8, -1, term::ATTR_BOLD)
-      term::put_str(tm, 18, 34, "Dim", 0x6c7086, -1, term::ATTR_DIM)
-      term::put_str(tm, 18, 39, "Italic", 0xfab387, -1, term::ATTR_ITALIC)
-      term::put_str(tm, 18, 47, "Underline", 0xa6e3a1, -1, term::ATTR_UNDERLINE)
-      term::put_str(tm, 18, 58, " Reverse ", 0x1e1e2e, 0x89b4fa, term::ATTR_NONE)
+      term::draw_titled_box(tm, 15, 3, 5, c - 6, term::BORDER_SINGLE, "Live Multi-byte UTF-8 Stdin Tester", pal.border, pal.bg, pal.fg)
+      term::put_str(tm, 16, 5, "Type any key or multi-byte UTF-8 character (e.g. Cyrillic, Greek, Emojis):", pal.fg, pal.bg, 0)
+      in_info = "Last Received: '" + in_str + "'  (Codepoint Dec: " + str::from_int(in_cp) + ", UTF-8 Width: " + str::from_int(?Rune(in_cp)) + "B)"
+      term::put_str(tm, 17, 5, in_info, pal.green, pal.bg, term::ATTR_BOLD)
 
    // Status bar at bottom
-   term::put_str(tm, r - 3, 2, m_msg, 0x94e2d5, -1, 0)
-   term::put_str(tm, r - 2, 2, stat_msg, 0xa6adc8, -1, 0)
+   term::put_str(tm, r - 3, 2, m_msg, pal.cyan, pal.bg, 0)
+   term::put_str(tm, r - 2, 2, stat_msg, pal.muted, pal.bg, 0)
 
+   // Render back buffer with synchronized atomic frame update
    term::render(tm)
 
-draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick')
+   // Position hardware cursor at the active pad position
+   term::set_cursor(tm, cur_r, cur_c)
+
+status_msg' = ++"Controls: [q] Exit  [p] Cycle Theme  [c] Cycle Cursor  [Arrows/hjkl/Mouse] Move Cursor"
+draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick', pal_idx', cur_shape_idx', last_input_str', last_input_cp')
 
 0.. @
-   ev = term::poll_event(t, 33)
+   ev = term::poll_event(t, 50)
    ev.kind == term::EV_NONE |
-      tick' = (tick' + 2) % 1536
-      draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick')
+      tick' = (tick' + 1) % 1536
 
    ev.kind == term::EV_KEY |
       ev.code == term::KEY_CHAR |
          ev.ch == 'q' | -->
-         ev.ch == 'h' && cursor_c' > PAD_MIN_C | cursor_c' = cursor_c' - 1
-         ev.ch == 'l' && cursor_c' < PAD_MAX_C | cursor_c' = cursor_c' + 1
-         ev.ch == 'k' && cursor_r' > PAD_MIN_R | cursor_r' = cursor_r' - 1
-         ev.ch == 'j' && cursor_r' < PAD_MAX_R | cursor_r' = cursor_r' + 1
-         draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick')
+         ev.ch == 'p' |
+            pal_idx' = pal_idx' + 1
+            draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick', pal_idx', cur_shape_idx', last_input_str', last_input_cp')
+         ev.ch == 'c' |
+            cur_shape_idx' = cur_shape_idx' + 1
+            draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick', pal_idx', cur_shape_idx', last_input_str', last_input_cp')
+         ev.ch == 'h' && cursor_c' > PAD_MIN_C |
+            cursor_c' = cursor_c' - 1
+            draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick', pal_idx', cur_shape_idx', last_input_str', last_input_cp')
+         ev.ch == 'l' && cursor_c' < PAD_MAX_C |
+            cursor_c' = cursor_c' + 1
+            draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick', pal_idx', cur_shape_idx', last_input_str', last_input_cp')
+         ev.ch == 'k' && cursor_r' > PAD_MIN_R |
+            cursor_r' = cursor_r' - 1
+            draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick', pal_idx', cur_shape_idx', last_input_str', last_input_cp')
+         ev.ch == 'j' && cursor_r' < PAD_MAX_R |
+            cursor_r' = cursor_r' + 1
+            draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick', pal_idx', cur_shape_idx', last_input_str', last_input_cp')
+         |
+            // Other character typed: record for live UTF-8 tester
+            last_input_cp' = ev.ch
+            last_input_str' = ++utf::encode_codepoint(ev.ch)
+            draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick', pal_idx', cur_shape_idx', last_input_str', last_input_cp')
+
       ev.code == term::KEY_UP && cursor_r' > PAD_MIN_R |
          cursor_r' = cursor_r' - 1
-         draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick')
+         draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick', pal_idx', cur_shape_idx', last_input_str', last_input_cp')
       ev.code == term::KEY_DOWN && cursor_r' < PAD_MAX_R |
          cursor_r' = cursor_r' + 1
-         draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick')
+         draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick', pal_idx', cur_shape_idx', last_input_str', last_input_cp')
       ev.code == term::KEY_LEFT && cursor_c' > PAD_MIN_C |
          cursor_c' = cursor_c' - 1
-         draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick')
+         draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick', pal_idx', cur_shape_idx', last_input_str', last_input_cp')
       ev.code == term::KEY_RIGHT && cursor_c' < PAD_MAX_C |
          cursor_c' = cursor_c' + 1
-         draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick')
+         draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick', pal_idx', cur_shape_idx', last_input_str', last_input_cp')
       ev.code == term::KEY_ESC | -->
 
    ev.kind == term::EV_MOUSE |
-      mouse_x' = ev.x
-      mouse_y' = ev.y
       mx = ev.x - 1
       my = ev.y - 1
       ev.mouse_act == term::MOUSE_PRESS |
@@ -309,10 +214,10 @@ draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick')
       ev.mouse_act == term::MOUSE_SCROLL_DOWN |
          mouse_msg' = ++("Mouse Wheel DOWN at (" + str::from_int(ev.x) + ", " + str::from_int(ev.y) + ")")
          cursor_r' < PAD_MAX_R | cursor_r' = cursor_r' + 1
-      draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick')
+      draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick', pal_idx', cur_shape_idx', last_input_str', last_input_cp')
 
    ev.kind == term::EV_RESIZE |
-      draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick')
+      draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick', pal_idx', cur_shape_idx', last_input_str', last_input_cp')
 
 term::disable_mouse(t)
 term::disable_raw(t)

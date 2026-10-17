@@ -1,5 +1,8 @@
 // term/src/style.dva — Colors, attributes, palettes, and border styles
 
+#use color
+#use "color/palette"
+
 #public
    // --- Text Attribute Bitmask ---
    ATTR_NONE      = 0
@@ -12,62 +15,43 @@
    // Default color sentinel (-1 signifies default terminal color)
    COLOR_DEFAULT  = -1
 
-   // Color packing helper (24-bit TrueColor: 0xRRGGBB)
+   // Color operations delegated to std/color
    rgb: Int, Int, Int => Int
-   rgb = r, g, b =>
-      ((r .&. 255) .<. 16) .|. ((g .&. 255) .<. 8) .|. (b .&. 255)
+   rgb = r, g, b => color::pack_rgb(r, g, b)
 
-   // Unpack RGB
    red: Int => Int
-   red = c => (c .>. 16) .&. 255
+   red = c => color::red(c)
 
    green: Int => Int
-   green = c => (c .>. 8) .&. 255
+   green = c => color::green(c)
 
    blue: Int => Int
-   blue = c => c .&. 255
+   blue = c => color::blue(c)
 
-   // --- Standard 16 ANSI Palette ---
-   BLACK          = 0x000000
-   RED            = 0xcd3131
-   GREEN          = 0x0dbc79
-   YELLOW         = 0xe5e510
-   BLUE           = 0x2472c8
-   MAGENTA        = 0xbc3fbc
-   CYAN           = 0x11a8cd
-   WHITE          = 0xe5e5e5
+   blend: Int, Int, Int => Int
+   blend = c1, c2, t => color::blend(c1, c2, t)
 
-   BRIGHT_BLACK   = 0x666666
-   BRIGHT_RED     = 0xf14c4c
-   BRIGHT_GREEN   = 0x23d18b
-   BRIGHT_YELLOW  = 0xf5f543
-   BRIGHT_BLUE    = 0x3b8eea
-   BRIGHT_MAGENTA = 0xd670d6
-   BRIGHT_CYAN    = 0x29b8db
-   BRIGHT_WHITE   = 0xffffff
+   lighten: Int, Int => Int
+   lighten = c, p => color::lighten(c, p)
 
-   // --- Modern Theme Palette (Catppuccin Mocha / TokyoNight inspired) ---
-   ROSEWATER      = 0xf5e0dc
-   FLAMINGO       = 0xf2cdcd
-   PINK           = 0xf5c2e7
-   MAUVE          = 0xcba6f7
-   RED_ACCENT     = 0xf38ba8
-   MAROON         = 0xeba0ac
-   PEACH          = 0xfab387
-   YELLOW_ACCENT  = 0xf9e2af
-   GREEN_ACCENT   = 0xa6e3a1
-   TEAL           = 0x94e2d5
-   SKY            = 0x89dceb
-   SAPPHIRE       = 0x74c7ec
-   BLUE_ACCENT    = 0x89b4fa
-   LAVENDER       = 0xb4befe
-   TEXT           = 0xcdd6f4
-   SUBTEXT        = 0xa6adc8
-   OVERLAY        = 0x6c7086
-   SURFACE        = 0x313244
-   BASE           = 0x1e1e2e
-   MANTLE         = 0x181825
-   CRUST          = 0x11111b
+   darken: Int, Int => Int
+   darken = c, p => color::darken(c, p)
+
+   grayscale: Int => Int
+   grayscale = c => color::grayscale(c)
+
+   // Palette type & Presets from std/color/palette
+   #type Palette palette::Palette
+   CATPPUCCIN      = palette::CATPPUCCIN
+   MONOKAI         = palette::MONOKAI
+   NORD            = palette::NORD
+   TOKYONIGHT      = palette::TOKYONIGHT
+   SOLARIZED_DARK  = palette::SOLARIZED_DARK
+   SOLARIZED_LIGHT = palette::SOLARIZED_LIGHT
+   GRUVBOX_DARK    = palette::GRUVBOX_DARK
+   ONE_DARK        = palette::ONE_DARK
+   DRACULA         = palette::DRACULA
+   ROSE_PINE       = palette::ROSE_PINE
 
    // --- Border Styles ---
    BORDER_SINGLE  = 0   // ┌ ─ ┐ │ └ ┘

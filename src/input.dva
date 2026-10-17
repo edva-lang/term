@@ -109,15 +109,28 @@
       b2 == 'Z' | --| key::ev_key(key::KEY_BACKTAB, 0, key::MOD_SHIFT)
       key::ev_none!
 
-   decode_tilde_key: Int => key::Event
-   decode_tilde_key = b2 =>
-      b2 == '2' | --| key::ev_code(key::KEY_INSERT)
-      b2 == '3' | --| key::ev_code(key::KEY_DELETE)
-      b2 == '5' | --| key::ev_code(key::KEY_PAGE_UP)
-      b2 == '6' | --| key::ev_code(key::KEY_PAGE_DOWN)
-      b2 == '1' | --| key::ev_code(key::KEY_HOME)
-      b2 == '4' | --| key::ev_code(key::KEY_END)
-      key::ev_none!
+   decode_csi_num_key: Int => Int
+   decode_csi_num_key = num =>
+      num
+         [1] key::KEY_HOME
+         [2] key::KEY_INSERT
+         [3] key::KEY_DELETE
+         [4] key::KEY_END
+         [5] key::KEY_PAGE_UP
+         [6] key::KEY_PAGE_DOWN
+         [11] key::KEY_F1
+         [12] key::KEY_F2
+         [13] key::KEY_F3
+         [14] key::KEY_F4
+         [15] key::KEY_F5
+         [17] key::KEY_F6
+         [18] key::KEY_F7
+         [19] key::KEY_F8
+         [20] key::KEY_F9
+         [21] key::KEY_F10
+         [23] key::KEY_F11
+         [24] key::KEY_F12
+         | key::KEY_NONE
 
    decode_fkey: Int => key::Event
    decode_fkey = fb =>
@@ -143,24 +156,32 @@
             b2 == '<' | --| parse_sgr_mouse!
             csi_ev = decode_csi_letter(b2)
             csi_ev.code != key::KEY_NONE | --| csi_ev
-            b2 !< '1' && b2 !> '6' |
-               c4 = read_byte_opt(20)
-               c4
-                  | b3 =>
-                     b3 == ';' |
-                        c5 = read_byte_opt(20)
-                        c6 = read_byte_opt(20)
-                        mod_val = c5 | v => v - 48 | 0
-                        fin_key = c6 | v => v | 0
+            b2 !< '0' && b2 !> '9' |
+               d = parse_decimal(b2)
+               num = d.0
+               term_c = d.1
+               term_c == '~' |
+                  k_code = decode_csi_num_key(num)
+                  k_code != key::KEY_NONE | --| key::ev_code(k_code)
+                  --| key::ev_none!
+               term_c == ';' |
+                  c5 = read_byte_opt(20)
+                  c5
+                     | mod_b =>
+                        d_mod = parse_decimal(mod_b)
+                        mod_val = d_mod.0
+                        fin_key = d_mod.1
                         mods' = key::MOD_NONE
                         mod_val == 2 | mods' = key::MOD_SHIFT
                         mod_val == 3 | mods' = key::MOD_ALT
                         mod_val == 5 | mods' = key::MOD_CTRL
+                        fin_key == '~' |
+                           k_code = decode_csi_num_key(num)
+                           --| key::ev_key(k_code, 0, mods')
                         marr = decode_mod_arrow(fin_key, mods')
                         --| marr
-                     tkey = decode_tilde_key(b2)
-                     --| tkey
-                  | key::ev_none!
+                     | key::ev_none!
+               key::ev_none!
             key::ev_none!
          | key::ev_none!
 
@@ -180,6 +201,43 @@
             key::ev_key(key::KEY_CHAR, b1, key::MOD_ALT)
          | key::ev_code(key::KEY_ESC)
 
+   // Decode multi-byte UTF-8 sequence starting with leading byte b0
+   decode_utf8_char: Int => key::Event
+   decode_utf8_char = b0 =>
+      (b0 .&. 0xE0) == 0xC0
+         |
+            b1_opt = read_byte_opt(20)
+            b1_opt
+               | b1 => key::ev_char(((b0 .&. 0x1F) .<. 6) .|. (b1 .&. 0x3F))
+               | key::ev_char(b0)
+         |
+            (b0 .&. 0xF0) == 0xE0
+               |
+                  b1_opt = read_byte_opt(20)
+                  b2_opt = read_byte_opt(20)
+                  b1_opt
+                     | b1 =>
+                        b2_opt
+                           | b2 => key::ev_char(((b0 .&. 0x0F) .<. 12) .|. ((b1 .&. 0x3F) .<. 6) .|. (b2 .&. 0x3F))
+                           | key::ev_char(b0)
+                     | key::ev_char(b0)
+               |
+                  (b0 .&. 0xF8) == 0xF0
+                     |
+                        b1_opt = read_byte_opt(20)
+                        b2_opt = read_byte_opt(20)
+                        b3_opt = read_byte_opt(20)
+                        b1_opt
+                           | b1 =>
+                              b2_opt
+                                 | b2 =>
+                                    b3_opt
+                                       | b3 => key::ev_char(((b0 .&. 0x07) .<. 18) .|. ((b1 .&. 0x3F) .<. 12) .|. ((b2 .&. 0x3F) .<. 6) .|. (b3 .&. 0x3F))
+                                       | key::ev_char(b0)
+                                 | key::ev_char(b0)
+                           | key::ev_char(b0)
+                     | key::ev_char(b0)
+
    // Read and decode the next input event
    poll_event: Int => key::Event
    poll_event = timeout_ms =>
@@ -191,5 +249,6 @@
             b0 == 9              | --| key::ev_code(key::KEY_TAB)
             b0 == 127 || b0 == 8 | --| key::ev_code(key::KEY_BACKSPACE)
             b0 !< 1 && b0 !> 26  | --| key::ev_ctrl(b0 + 96)
+            b0 !< 0x80           | --| decode_utf8_char(b0)
             key::ev_char(b0)
          | key::ev_none!

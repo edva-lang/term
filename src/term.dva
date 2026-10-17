@@ -84,10 +84,44 @@
    ALIGN_CENTER   = grid::ALIGN_CENTER
    ALIGN_RIGHT    = grid::ALIGN_RIGHT
 
-   // Colors
+   // Colors & Color Operations
    COLOR_DEFAULT  = style::COLOR_DEFAULT
    rgb: Int, Int, Int => Int
    rgb = r, g, b => style::rgb(r, g, b)
+
+   blend: Int, Int, Int => Int
+   blend = c1, c2, t => style::blend(c1, c2, t)
+
+   lighten: Int, Int => Int
+   lighten = c, p => style::lighten(c, p)
+
+   darken: Int, Int => Int
+   darken = c, p => style::darken(c, p)
+
+   grayscale: Int => Int
+   grayscale = c => style::grayscale(c)
+
+   // Palette Type & Presets
+   #type Palette style::Palette
+   CATPPUCCIN      = style::CATPPUCCIN
+   MONOKAI         = style::MONOKAI
+   NORD            = style::NORD
+   TOKYONIGHT      = style::TOKYONIGHT
+   SOLARIZED_DARK  = style::SOLARIZED_DARK
+   SOLARIZED_LIGHT = style::SOLARIZED_LIGHT
+   GRUVBOX_DARK    = style::GRUVBOX_DARK
+   ONE_DARK        = style::ONE_DARK
+   DRACULA         = style::DRACULA
+   ROSE_PINE       = style::ROSE_PINE
+
+   // Hardware Cursor Shapes
+   CURSOR_DEFAULT          = raw::CURSOR_DEFAULT
+   CURSOR_BLOCK            = raw::CURSOR_BLOCK
+   CURSOR_BLOCK_STEADY     = raw::CURSOR_BLOCK_STEADY
+   CURSOR_UNDERLINE        = raw::CURSOR_UNDERLINE
+   CURSOR_UNDERLINE_STEADY = raw::CURSOR_UNDERLINE_STEADY
+   CURSOR_BEAM             = raw::CURSOR_BEAM
+   CURSOR_BEAM_STEADY      = raw::CURSOR_BEAM_STEADY
 
    // Escape string constant
    ESC = raw::ESC
@@ -147,8 +181,6 @@
    shutdown = t =>
       t.is_mouse | raw::disable_mouse!
       t.is_raw   | disable_raw(t)
-      grid::free(t.front)
-      grid::free(t.back)
 
    // Enable raw mode and alternate screen
    enable_raw: Term => ()
@@ -186,8 +218,6 @@
       new_c = sz(1)
       new_r != t.rows || new_c != t.cols
          |
-            grid::free(t.front)
-            grid::free(t.back)
             t.front = grid::new(new_r, new_c)
             t.back = grid::new(new_r, new_c)
             t.rows = new_r
@@ -202,6 +232,18 @@
       refresh_size(t)
          | key::ev_resize(t.rows, t.cols)
          | input::poll_event(timeout_ms)
+
+   // Force full redraw by clearing screen and resetting front buffer
+   force_redraw: Term => ()
+   force_redraw = t =>
+      sz = raw::get_size!
+      new_r = sz(0)
+      new_c = sz(1)
+      t.rows = new_r
+      t.cols = new_c
+      t.front = grid::new_invalid(new_r, new_c)
+      t.back = grid::new(new_r, new_c)
+      raw::clear_screen!
 
    // Render back buffer diff to screen
    render: Term => ()
@@ -249,6 +291,34 @@
    draw_vline: Term, Int, Int, Int, Int, Int, Int, Int => ()
    draw_vline = t, r, c, len, ch, fg, bg, attr =>
       grid::draw_vline(t.back, r, c, len, ch, fg, bg, attr)
+
+   // Hardware Cursor Positioning & Visibility
+   set_cursor: Term, Int, Int => ()
+   set_cursor = t, r, c =>
+      raw::move_cursor(r + 1, c + 1)
+
+   show_cursor: Term => ()
+   show_cursor = t => raw::show_cursor!
+
+   hide_cursor: Term => ()
+   hide_cursor = t => raw::hide_cursor!
+
+   set_cursor_shape: Term, Int => ()
+   set_cursor_shape = t, shape => raw::set_cursor_shape(shape)
+
+   // Terminal window title
+   set_title: Term, String => ()
+   set_title = t, title => raw::set_title(title)
+
+   // Copy text to system clipboard via OSC 52
+   copy_to_clipboard: Term, String => ()
+   copy_to_clipboard = t, text => raw::copy_to_clipboard(text)
+
+   // Viewport / Subgrid Window
+   #type Window grid::Window
+   create_window: Term, Int, Int, Int, Int => grid::Window
+   create_window = t, r, c, h, w =>
+      grid::win_new(t.back, r, c, h, w)
 
    hello: () => String
    hello = !=> "Hello from term!"
