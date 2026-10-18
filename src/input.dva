@@ -107,6 +107,10 @@
       b2 == 'H' | --| key::ev_code(key::KEY_HOME)
       b2 == 'F' | --| key::ev_code(key::KEY_END)
       b2 == 'Z' | --| key::ev_key(key::KEY_BACKTAB, 0, key::MOD_SHIFT)
+      b2 == 'P' | --| key::ev_code(key::KEY_F1)
+      b2 == 'Q' | --| key::ev_code(key::KEY_F2)
+      b2 == 'R' | --| key::ev_code(key::KEY_F3)
+      b2 == 'S' | --| key::ev_code(key::KEY_F4)
       key::ev_none!
 
    decode_csi_num_key: Int => Int
@@ -118,12 +122,12 @@
          [4] key::KEY_END
          [5] key::KEY_PAGE_UP
          [6] key::KEY_PAGE_DOWN
-         [11] key::KEY_F1
-         [12] key::KEY_F2
-         [13] key::KEY_F3
-         [14] key::KEY_F4
-         [15] key::KEY_F5
-         [17] key::KEY_F6
+         [11, 28] key::KEY_F1
+         [12, 29] key::KEY_F2
+         [13, 31] key::KEY_F3
+         [14, 32] key::KEY_F4
+         [15, 33] key::KEY_F5
+         [17, 34] key::KEY_F6
          [18] key::KEY_F7
          [19] key::KEY_F8
          [20] key::KEY_F9
@@ -134,10 +138,10 @@
 
    decode_fkey: Int => key::Event
    decode_fkey = fb =>
-      fb == 'P' | --| key::ev_code(key::KEY_F1)
-      fb == 'Q' | --| key::ev_code(key::KEY_F2)
-      fb == 'R' | --| key::ev_code(key::KEY_F3)
-      fb == 'S' | --| key::ev_code(key::KEY_F4)
+      fb == 'P' || fb == 'p' | --| key::ev_code(key::KEY_F1)
+      fb == 'Q' || fb == 'q' | --| key::ev_code(key::KEY_F2)
+      fb == 'R' || fb == 'r' | --| key::ev_code(key::KEY_F3)
+      fb == 'S' || fb == 's' | --| key::ev_code(key::KEY_F4)
       key::ev_none!
 
    decode_mod_arrow: Int, Int => key::Event
@@ -150,10 +154,21 @@
 
    parse_csi: () => key::Event
    parse_csi = !=>
-      c_opt = read_byte_opt(20)
+      c_opt = read_byte_opt(50)
       c_opt
          | b2 =>
             b2 == '<' | --| parse_sgr_mouse!
+            b2 == '[' |
+               f_opt = read_byte_opt(50)
+               f_opt
+                  | fb =>
+                     fb == 'A' | --| key::ev_code(key::KEY_F1)
+                     fb == 'B' | --| key::ev_code(key::KEY_F2)
+                     fb == 'C' | --| key::ev_code(key::KEY_F3)
+                     fb == 'D' | --| key::ev_code(key::KEY_F4)
+                     fb == 'E' | --| key::ev_code(key::KEY_F5)
+                     --| key::ev_none!
+                  | --| key::ev_none!
             csi_ev = decode_csi_letter(b2)
             csi_ev.code != key::KEY_NONE | --| csi_ev
             b2 !< '0' && b2 !> '9' |
@@ -164,8 +179,12 @@
                   k_code = decode_csi_num_key(num)
                   k_code != key::KEY_NONE | --| key::ev_code(k_code)
                   --| key::ev_none!
+               term_c == 'P' | --| key::ev_code(key::KEY_F1)
+               term_c == 'Q' | --| key::ev_code(key::KEY_F2)
+               term_c == 'R' | --| key::ev_code(key::KEY_F3)
+               term_c == 'S' | --| key::ev_code(key::KEY_F4)
                term_c == ';' |
-                  c5 = read_byte_opt(20)
+                  c5 = read_byte_opt(50)
                   c5
                      | mod_b =>
                         d_mod = parse_decimal(mod_b)
@@ -181,8 +200,12 @@
                         fin_key == 'u' |
                            mods' == key::MOD_CTRL | --| key::ev_ctrl(num)
                            --| key::ev_char(num)
+                        fin_key == 'P' | --| key::ev_key(key::KEY_F1, 0, mods')
+                        fin_key == 'Q' | --| key::ev_key(key::KEY_F2, 0, mods')
+                        fin_key == 'R' | --| key::ev_key(key::KEY_F3, 0, mods')
+                        fin_key == 'S' | --| key::ev_key(key::KEY_F4, 0, mods')
                         fin_key == ';' && num == 27 |
-                           c6 = read_byte_opt(20)
+                           c6 = read_byte_opt(50)
                            c6
                               | key_b =>
                                  d_key = parse_decimal(key_b)
@@ -199,17 +222,15 @@
 
    parse_escape_seq: () => key::Event
    parse_escape_seq = !=>
-      p_opt = read_byte_opt(20)
+      p_opt = read_byte_opt(50)
       p_opt
          | b1 =>
             b1 == '[' | --| parse_csi!
             b1 == 'O' |
-               f_opt = read_byte_opt(20)
+               f_opt = read_byte_opt(50)
                f_opt
-                  | fb =>
-                     fk = decode_fkey(fb)
-                     --| fk
-                  | key::ev_none!
+                  | fb => --| decode_fkey(fb)
+                  | --| key::ev_none!
             key::ev_key(key::KEY_CHAR, b1, key::MOD_ALT)
          | key::ev_code(key::KEY_ESC)
 
