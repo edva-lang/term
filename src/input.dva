@@ -178,6 +178,18 @@
                         fin_key == '~' |
                            k_code = decode_csi_num_key(num)
                            --| key::ev_key(k_code, 0, mods')
+                        fin_key == 'u' |
+                           mods' == key::MOD_CTRL | --| key::ev_ctrl(num)
+                           --| key::ev_char(num)
+                        fin_key == ';' && num == 27 |
+                           c6 = read_byte_opt(20)
+                           c6
+                              | key_b =>
+                                 d_key = parse_decimal(key_b)
+                                 code_val = d_key.0
+                                 mods' == key::MOD_CTRL | --| key::ev_ctrl(code_val)
+                                 --| key::ev_char(code_val)
+                              | key::ev_none!
                         marr = decode_mod_arrow(fin_key, mods')
                         --| marr
                      | key::ev_none!
