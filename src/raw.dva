@@ -42,14 +42,14 @@
    disable_raw_termios = orig =>
       libc::tcsetattr(0, 2, orig) == 0
 
-   // Alternate screen buffer
+   // Alternate screen buffer & progressive keyboard enhancement
    enter_alt_screen: () => ()
    enter_alt_screen = !=>
-      write_raw("\e[?1049h\e[?25l") // enter alt screen, hide cursor
+      write_raw("\e[?1049h\e[?25l\e[>4;2m\e[>1u") // enter alt screen, hide cursor, enable extended keys
 
    exit_alt_screen: () => ()
    exit_alt_screen = !=>
-      write_raw("\e[?25h\e[?1049l") // show cursor, exit alt screen
+      write_raw("\e[>4;0m\e[<u\e[?25h\e[?1049l") // disable extended keys, show cursor, exit alt screen
 
    // Cursor visibility
    hide_cursor: () => ()
