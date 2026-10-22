@@ -53,6 +53,12 @@
    EV_KEY         = key::EV_KEY
    EV_MOUSE       = key::EV_MOUSE
    EV_RESIZE      = key::EV_RESIZE
+   EV_THEME       = key::EV_THEME
+
+   // Color scheme values (EV_THEME event.code)
+   THEME_UNKNOWN  = key::THEME_UNKNOWN
+   THEME_DARK     = key::THEME_DARK
+   THEME_LIGHT    = key::THEME_LIGHT
 
    // Mouse actions & buttons
    MOUSE_PRESS        = key::MOUSE_PRESS
@@ -148,6 +154,9 @@
    ev_resize: Int, Int => key::Event
    ev_resize = rows, cols => key::ev_resize(rows, cols)
 
+   ev_theme: Int, Int => key::Event
+   ev_theme = scheme, bg => key::ev_theme(scheme, bg)
+
    // Types
    #type Event key::Event
    #type Grid  grid::Grid
@@ -158,6 +167,8 @@
       raw_termios: Addr,
       is_raw: <>,
       is_mouse: <>,
+      is_dark: <>,
+      bg_color: Int,
       rows: Int,
       cols: Int,
       front: grid::Grid,
@@ -169,25 +180,53 @@
    init = !=>
       orig_t = {64}
       raw_t = {64}
+      raw::init_termios(&orig_t, &raw_t)
       sz = raw::get_size!
       r = sz(0)
       c = sz(1)
       front = grid::new(r, c)
       back = grid::new(r, c)
-      Term((&orig_t, &raw_t, <->, <->, r, c, front, back))
+      Term((&orig_t, &raw_t, <->, <->, <+>, style::COLOR_DEFAULT, r, c, front, back))
+
+   // Query terminal color scheme (CSI ? 996 n + OSC 11) and update t.is_dark / t.bg_color
+   detect_theme: Term => <>
+   detect_theme = t =>
+      res = input::detect_theme(50)
+      res.0 != key::THEME_UNKNOWN |
+         t.is_dark = (res.0 == key::THEME_DARK)
+      res.1 != style::COLOR_DEFAULT |
+         t.bg_color = res.1
+      t.is_dark
+
+   // Whether the terminal is currently using a dark color scheme
+   is_dark: Term => <>
+   is_dark = t => t.is_dark
+
+   // Detected 24-bit RGB background color (or COLOR_DEFAULT if unknown)
+   bg_color: Term => Int
+   bg_color = t => t.bg_color
 
    // Shutdown and clean up resources
    shutdown: Term => ()
    shutdown = t =>
-      t.is_mouse | raw::disable_mouse!
-      t.is_raw   | disable_raw(t)
+      t.is_mouse |
+         raw::disable_mouse!
+         t.is_mouse = <->
+      raw::exit_alt_screen!
+      raw::show_cursor!
+      raw::disable_bracketed_paste!
+      raw::set_cursor_shape(raw::CURSOR_DEFAULT)
+      raw::write_raw("\e[0m")
+      raw::disable_raw_termios(t.orig_termios)
+      t.is_raw = <->
 
    // Enable raw mode and alternate screen
    enable_raw: Term => ()
    enable_raw = t =>
-      !raw::enable_raw_termios(t.orig_termios, t.raw_termios) | --|
+      !raw::set_raw_termios(t.raw_termios) | --|
       t.is_raw = <+>
       raw::enter_alt_screen!
+      dark = detect_theme(t)
 
    // Disable raw mode and restore screen
    disable_raw: Term => ()
@@ -226,12 +265,18 @@
             <+>
          | <->
 
-   // Poll event with window resize detection
+   // Poll event with window resize and live theme change detection
    poll_event: Term, Int => key::Event
    poll_event = t, timeout_ms =>
       refresh_size(t)
          | key::ev_resize(t.rows, t.cols)
-         | input::poll_event(timeout_ms)
+         |
+            ev = input::poll_event(timeout_ms)
+            ev.kind == key::EV_THEME |
+               t.is_dark = (ev.code != key::THEME_LIGHT)
+               ev.ch != style::COLOR_DEFAULT |
+                  t.bg_color = ev.ch
+            ev
 
    // Force full redraw by clearing screen and resetting front buffer
    force_redraw: Term => ()

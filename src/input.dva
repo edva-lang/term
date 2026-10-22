@@ -3,7 +3,10 @@
 #use libc
 #use sys
 #use str
+#use color
 #use "key"
+#use "style"
+#use "raw"
 
 #public
    // Check if input is available on stdin with timeout (ms)
@@ -35,6 +38,134 @@
                      -->
             | -->
       (num', term_c')
+
+   // Drain remaining bytes of an unhandled CSI sequence up to final byte (0x40..0x7E)
+   drain_csi_tail: Int => ()
+   drain_csi_tail = last_b =>
+      last_b !< 0x40 && last_b !> 0x7E | --|
+      32 @ i =>
+         opt = read_byte_opt(20)
+         opt
+            | b =>
+               b !< 0x40 && b !> 0x7E | -->
+            | -->
+
+   // Parse private CSI sequence: \e[?... (e.g. \e[?997;1n or \e[?997;2n from Mode 2031 / ?996n)
+   parse_csi_private: () => key::Event
+   parse_csi_private = !=>
+      q_opt = read_byte_opt(50)
+      q_opt
+         | qb =>
+            qb !< '0' && qb !> '9'
+               |
+                  d = parse_decimal(qb)
+                  num = d.0
+                  term_c = d.1
+                  num == 997 && term_c == ';'
+                     |
+                        s_opt = read_byte_opt(50)
+                        s_opt
+                           | sb =>
+                              sb !< '0' && sb !> '9'
+                                 |
+                                    ds = parse_decimal(sb)
+                                    ds.1 == 'n'
+                                       |
+                                          scheme = ds.0
+                                             [2] key::THEME_LIGHT
+                                             | key::THEME_DARK
+                                          key::ev_theme(scheme, style::COLOR_DEFAULT)
+                                       |
+                                          drain_csi_tail(ds.1)
+                                          key::ev_none!
+                                 |
+                                    drain_csi_tail(sb)
+                                    key::ev_none!
+                           | key::ev_none!
+                     |
+                        drain_csi_tail(term_c)
+                        key::ev_none!
+               |
+                  drain_csi_tail(qb)
+                  key::ev_none!
+         | key::ev_none!
+
+   // Scale a 1..4 hex-digit XParseColor channel to 8-bit (0..255)
+   scale_osc_channel: Int, Int => Int
+   scale_osc_channel = val, digits =>
+      digits
+         [1] (val .<. 4) .|. val
+         [2] val
+         [3] val .>. 4
+         [4] val .>. 8
+         | 0
+
+   // Parse 1..4 hex digits from s starting at start; returns (scaled_8bit, digit_count, next_index)
+   parse_hex_channel: String, Int => (Int, Int, Int)
+   parse_hex_channel = s, start =>
+      n = ?s
+      i' = start
+      val' = 0
+      digits' = 0
+      4 @ step =>
+         i' < n
+            |
+               d = color::hex_digit(s(i'))
+               d !< 0
+                  |
+                     val' = (val' .<. 4) .|. d
+                     digits' = digits' + 1
+                     i' = i' + 1
+                  | -->
+            | -->
+      (scale_osc_channel(val', digits'), digits', i')
+
+   // Read OSC payload up to BEL (0x07), ST (\e\\), or 0x9C
+   read_osc_payload: () => String
+   read_osc_payload = !=>
+      buf = {0x40}
+      0x40 @ i =>
+         opt = read_byte_opt(50)
+         opt
+            | b =>
+               b
+                  [7, 0x9C] -->
+                  [27]
+                     st_b = read_byte_opt(20)
+                     -->
+                  | buf += b
+            | -->
+      +buf
+
+   // Parse OSC sequence after \e]: handles OSC 11 background color reply (\e]11;rgb:RRRR/GGGG/BBBB\e\\)
+   parse_osc: () => key::Event
+   parse_osc = !=>
+      s = read_osc_payload!
+      n = ?s
+      n !< 12 && s(..7) == "11;rgb:"
+         |
+            ch_r = parse_hex_channel(s, 7)
+            ch_r.1 > 0 && ch_r.2 < n && s(ch_r.2) == '/'
+               |
+                  ch_g = parse_hex_channel(s, ch_r.2 + 1)
+                  ch_g.1 > 0 && ch_g.2 < n && s(ch_g.2) == '/'
+                     |
+                        ch_b = parse_hex_channel(s, ch_g.2 + 1)
+                        ch_b.1 > 0
+                           |
+                              bg = color::pack_rgb(ch_r.0, ch_g.0, ch_b.0)
+                              scheme = color::luminance(bg) < 128 | key::THEME_DARK | key::THEME_LIGHT
+                              key::ev_theme(scheme, bg)
+                           | key::ev_none!
+                     | key::ev_none!
+               | key::ev_none!
+         |
+            n !< 10 && s(..4) == "11;#"
+               |
+                  bg = color::from_hex_str(s(3..n))
+                  scheme = color::luminance(bg) < 128 | key::THEME_DARK | key::THEME_LIGHT
+                  key::ev_theme(scheme, bg)
+               | key::ev_none!
 
    // Parse SGR mouse event: \x1b[<{btn};{col};{row}{M|m}
    // '<' has already been consumed
@@ -164,6 +295,7 @@
          | b2 =>
             b2
                ['<'] parse_sgr_mouse!
+               ['?'] parse_csi_private!
                ['[']
                   f_opt = read_byte_opt(50)
                   f_opt
@@ -250,7 +382,8 @@
                                                       [13] key::ev_key(key::KEY_ENTER, 0, mods)
                                                       [9] key::ev_key(key::KEY_TAB, 0, mods)
                                                       [27] key::ev_key(key::KEY_ESC, 0, mods)
-                                                      [8, 127] key::ev_key(key::KEY_BACKSPACE, 0, mods)
+                                                      [8] (mods == key::MOD_CTRL | key::ev_ctrl('h') | key::ev_key(key::KEY_BACKSPACE, 0, mods))
+                                                      [127] key::ev_key(key::KEY_BACKSPACE, 0, mods)
                                                       [(_ !< 1 && _ !> 9)]
                                                          mods == key::MOD_CTRL | key::ev_ctrl(code_val + 48) | key::ev_char(code_val)
                                                       | (mods == key::MOD_CTRL | key::ev_ctrl(code_val) | key::ev_char(code_val))
@@ -269,6 +402,7 @@
          | b1 =>
             b1
                ['['] parse_csi!
+               [']'] parse_osc!
                ['O']
                   f_opt = read_byte_opt(50)
                   f_opt
@@ -324,7 +458,7 @@
                [27] parse_escape_seq!
                [10, 13] key::ev_code(key::KEY_ENTER)
                [9] key::ev_code(key::KEY_TAB)
-               [8, 127] key::ev_code(key::KEY_BACKSPACE)
+               [127] key::ev_code(key::KEY_BACKSPACE)
                [0] key::ev_ctrl('2')
                [28] key::ev_ctrl('4')
                [29] key::ev_ctrl('5')
@@ -334,3 +468,20 @@
                [> 127] decode_utf8_char(b0)
                | key::ev_char(b0)
          | key::ev_none!
+
+   // Query terminal color scheme via CSI ? 996 n + OSC 11; returns (scheme, bg_rgb)
+   detect_theme: Int => (Int, Int)
+   detect_theme = timeout_ms =>
+      raw::query_theme!
+      scheme' = key::THEME_UNKNOWN
+      bg' = style::COLOR_DEFAULT
+      ev1 = poll_event(timeout_ms)
+      ev1.kind == key::EV_THEME |
+         scheme' = ev1.code
+         ev1.ch != style::COLOR_DEFAULT
+            | bg' = ev1.ch
+            |
+               ev2 = poll_event(15)
+               ev2.kind == key::EV_THEME && ev2.ch != style::COLOR_DEFAULT |
+                  bg' = ev2.ch
+      (scheme', bg')

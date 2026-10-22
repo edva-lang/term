@@ -7,6 +7,7 @@ High-performance, zero-flicker terminal and TUI library for [Edva](https://githu
 - **Raw Terminal Mode**: Clean POSIX `termios` raw mode management with automatic alternate screen buffer (`\e[?1049h`), cursor control, and signal safety.
 - **Modern Keyboard Input**: Complete support for ANSI escapes, VT220/xterm function keys (F1–F12), navigation keys (arrows, Home, End, PageUp, PageDown), and progressive keyboard enhancements (Kitty CSI `u` and `modifyOtherKeys`).
 - **Mouse Tracking**: Full SGR 1006 mouse tracking support (press, release, drag, scroll wheel, and modifier combinations).
+- **Dark/Light Scheme Detection**: Automatic terminal color-scheme detection and live change notifications via `CSI ? 996 n` / DEC Mode `2031` (`\e[?997;1n` / `\e[?997;2n`) and `OSC 11` background RGB luminance (`\e]11;?\e\\`).
 - **Double-Buffered Renderer**: Differential zero-flicker grid rendering (`Grid`) with TrueColor 24-bit RGB and 256-color ANSI support.
 - **UTF-8 & Unicode Ready**: Full multi-byte UTF-8 rune decoding, glyph measurements, and Unicode box drawing characters (single, double, rounded, heavy, ASCII).
 - **Zero Allocations in Hot Paths**: Packed 16-byte `Cell` representation and stack/arena-oriented rendering routines.

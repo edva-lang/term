@@ -7,7 +7,7 @@
 
 get_palette: Int => (term::Palette, String)
 get_palette = idx =>
-   (idx % 9)
+   (idx % 10)
       [0] (term::CATPPUCCIN, "Catppuccin")
       [1] (term::MONOKAI, "Monokai")
       [2] (term::NORD, "Nord")
@@ -16,7 +16,8 @@ get_palette = idx =>
       [5] (term::GRUVBOX_DARK, "Gruvbox Dark")
       [6] (term::ONE_DARK, "One Dark")
       [7] (term::DRACULA, "Dracula")
-      | (term::ROSE_PINE, "Rose Pine")
+      [8] (term::ROSE_PINE, "Rose Pine")
+      | (term::SOLARIZED_LIGHT, "Solarized Light")
 
 get_cursor_shape_info: Int => (Int, String)
 get_cursor_shape_info = idx =>
@@ -46,7 +47,7 @@ cursor_c' = 8
 mouse_x' = 0
 mouse_y' = 0
 tick' = 0
-pal_idx' = 0
+pal_idx' = term::is_dark(t) | 0 | 9
 cur_shape_idx' = 0
 last_input_str' = ++"None"
 last_input_cp' = 0
@@ -70,8 +71,9 @@ draw_ui = tm, cur_r, cur_c, stat_msg, m_msg, phase, pal_i, shape_i, in_str, in_c
    // Outer window box themed by active palette
    term::draw_titled_box(tm, 0, 0, r, c, term::BORDER_ROUNDED, "", pal.border, pal.bg, pal.fg)
 
-   // Title & Palette Name
-   title = " term v1.2.0 — Theme: [" + pal_name + "] "
+   // Title & Palette Name + Detected Terminal Scheme
+   scheme_label = term::is_dark(tm) | "Dark" | "Light"
+   title = " term v1.2.0 — Theme: [" + pal_name + "] (Term: " + scheme_label + ") "
    term::put_str(tm, 0, 3, title, pal.blue, pal.bg, term::ATTR_BOLD)
    term::set_title(tm, "term — " + pal_name)
 
@@ -217,6 +219,10 @@ draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick', pal_idx', cur_s
       draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick', pal_idx', cur_shape_idx', last_input_str', last_input_cp')
 
    ev.kind == term::EV_RESIZE |
+      draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick', pal_idx', cur_shape_idx', last_input_str', last_input_cp')
+
+   ev.kind == term::EV_THEME |
+      pal_idx' = term::is_dark(t) | 0 | 9
       draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick', pal_idx', cur_shape_idx', last_input_str', last_input_cp')
 
 term::disable_mouse(t)

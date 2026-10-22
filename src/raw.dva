@@ -29,27 +29,37 @@
             c = col < 1 | 80 | col
             (r, c)
 
-   // Enable raw mode on stdin
-   enable_raw_termios: Addr, Addr => <>
-   enable_raw_termios = orig, raw =>
+   // Capture initial canonical termios and construct raw termios
+   init_termios: Addr, Addr => <>
+   init_termios = orig, raw =>
       libc::tcgetattr(0, orig) != 0 |->
       libc::memcpy(raw, orig, 64)
       libc::cfmakeraw(raw)
+      <+>
+
+   // Apply raw mode to stdin
+   set_raw_termios: Addr => <>
+   set_raw_termios = raw =>
       libc::tcsetattr(0, 0, raw) == 0
+
+   // Enable raw mode on stdin (for backwards compatibility)
+   enable_raw_termios: Addr, Addr => <>
+   enable_raw_termios = orig, raw =>
+      set_raw_termios(raw)
 
    // Restore canonical mode on stdin
    disable_raw_termios: Addr => <>
    disable_raw_termios = orig =>
       libc::tcsetattr(0, 2, orig) == 0
 
-   // Alternate screen buffer & progressive keyboard enhancement
+   // Alternate screen buffer, progressive keyboard enhancement & theme notifications
    enter_alt_screen: () => ()
    enter_alt_screen = !=>
-      write_raw("\e[?1049h\e[?25l\e[>4;2m\e[>1u") // enter alt screen, hide cursor, enable extended keys
+      write_raw("\e[?1049h\e[?25l\e[>4;2m\e[>1u\e[?2031h") // enter alt screen, hide cursor, enable extended keys & theme notify
 
    exit_alt_screen: () => ()
    exit_alt_screen = !=>
-      write_raw("\e[>4;0m\e[<u\e[?25h\e[?1049l") // disable extended keys, show cursor, exit alt screen
+      write_raw("\e[?2031l\e[>4;0m\e[<u\e[?25h\e[?1049l\e[0m") // disable theme notify & extended keys, show cursor, exit alt screen, reset SGR
 
    // Cursor visibility
    hide_cursor: () => ()
@@ -87,6 +97,19 @@
    disable_bracketed_paste: () => ()
    disable_bracketed_paste = !=>
       write_raw("\e[?2004l")
+
+   // Color scheme preference notifications (DEC Mode 2031) & queries (CSI ?996n + OSC 11)
+   enable_theme_notify: () => ()
+   enable_theme_notify = !=>
+      write_raw("\e[?2031h")
+
+   disable_theme_notify: () => ()
+   disable_theme_notify = !=>
+      write_raw("\e[?2031l")
+
+   query_theme: () => ()
+   query_theme = !=>
+      write_raw("\e[?996n\e]11;?\e\\")
 
    // Hardware cursor shape (DECSCUSR)
    CURSOR_DEFAULT          = 0

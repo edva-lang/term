@@ -57,6 +57,12 @@
    EV_KEY         = 1
    EV_MOUSE       = 2
    EV_RESIZE      = 3
+   EV_THEME       = 4
+
+   // --- Color Scheme Constants ---
+   THEME_UNKNOWN  = 0
+   THEME_DARK     = 1
+   THEME_LIGHT    = 2
 
    // Unified Event Record
    #type Event (
@@ -98,3 +104,7 @@
    ev_resize: Int, Int => Event
    ev_resize = rows, cols =>
       Event((EV_RESIZE, 0, 0, MOD_NONE, MOUSE_BTN_NONE, 0, cols, rows))
+
+   ev_theme: Int, Int => Event
+   ev_theme = scheme, bg_rgb =>
+      Event((EV_THEME, scheme, bg_rgb, MOD_NONE, MOUSE_BTN_NONE, 0, 0, 0))
