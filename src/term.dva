@@ -178,8 +178,9 @@
    // Initialize terminal subsystem
    init: () => Term
    init = !=>
-      orig_t = {64}
-      raw_t = {64}
+      // struct termios is 60 bytes on Linux and 72 on macOS
+      orig_t = {128}
+      raw_t = {128}
       raw::init_termios(&orig_t, &raw_t)
       sz = raw::get_size!
       r = sz(0)

@@ -14,12 +14,13 @@
    write_raw = s =>
       libc::write(1, s, ?s)
 
-   // Query terminal rows and columns via TIOCGWINSZ ioctl (0x5413)
+   // Query terminal rows and columns via TIOCGWINSZ ioctl (Linux 0x5413, macOS 0x40087468)
    get_size: () => (Int, Int)
    get_size = !=>
       buf = {8}
       p = &buf
-      res = libc::ioctl(1, 0x5413, Int(p))
+      req = libc::is_darwin! | 0x40087468 | 0x5413
+      res = libc::ioctl(1, req, Int(p))
       res != 0
          | (24, 80)
          |
@@ -33,7 +34,7 @@
    init_termios: Addr, Addr => <>
    init_termios = orig, raw =>
       libc::tcgetattr(0, orig) != 0 |->
-      libc::memcpy(raw, orig, 64)
+      libc::memcpy(raw, orig, 128)
       libc::cfmakeraw(raw)
       <+>
 
