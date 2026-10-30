@@ -1,5 +1,6 @@
 // term/src/input.dva — Stdin polling and ANSI escape sequence event decoding
 
+#use ascii
 #use libc
 #use sys
 #use str
@@ -110,9 +111,8 @@
       4 @ step =>
          i' < n
             |
-               d = color::hex_digit(s(i'))
-               d !< 0
-                  |
+               ascii::hex_value(s(i'))
+                  | d =>
                      val' = (val' .<. 4) .|. d
                      digits' = digits' + 1
                      i' = i' + 1

@@ -6,7 +6,7 @@
 #use "raw"
 
 #public
-   #type Cell: #packed (
+   #type Cell #packed (
       ch: u32,
       fg: i32,
       bg: i32,
@@ -16,7 +16,7 @@
    #type Grid (
       rows: Int,
       cols: Int,
-      cells: (Cell){}
+      cells: Cell{}
    )
 
    // Allocate a new grid of rows x cols
@@ -24,31 +24,31 @@
    new = rows, cols =>
       r = rows < 1 | 1 | rows
       c = cols < 1 | 1 | cols
-      cells = (Cell){}
+      cells = Cell{}
       (r * c) @ i =>
-         cells += Cell((32, -1, -1, 0))
-      Grid((r, c, cells))
+         cells += Cell(32, -1, -1, 0)
+      Grid(r, c, cells)
 
    // Allocate a sentinel grid where every cell is mismatched
    new_invalid: Int, Int => Grid
    new_invalid = rows, cols =>
       r = rows < 1 | 1 | rows
       c = cols < 1 | 1 | cols
-      cells = (Cell){}
+      cells = Cell{}
       (r * c) @ i =>
-         cells += Cell((0, -999, -999, 999))
-      Grid((r, c, cells))
+         cells += Cell(0, -999, -999, 999)
+      Grid(r, c, cells)
 
    clear: Grid => ()
    clear = g =>
       total = g.rows * g.cols
       total @ i =>
-         g.cells(i) = Cell((32, -1, -1, 0))
+         g.cells(i) = Cell(32, -1, -1, 0)
 
    set: Grid, Int, Int, Int, Int, Int, Int => ()
    set = g, row, col, ch, fg, bg, attr =>
       row < 0 || row !< g.rows || col < 0 || col !< g.cols | --|
-      g.cells(row * g.cols + col) = Cell((u32(ch), i32(fg), i32(bg), u32(attr)))
+      g.cells(row * g.cols + col) = Cell(u32(ch), i32(fg), i32(bg), u32(attr))
 
    get: Grid, Int, Int => (Int, Int, Int, Int)
    get = g, row, col =>
@@ -252,7 +252,7 @@
 
    win_new: Grid, Int, Int, Int, Int => Window
    win_new = g, r, c, h, w =>
-      Window((g, r, c, h, w))
+      Window(g, r, c, h, w)
 
    win_set: Window, Int, Int, Int, Int, Int, Int => ()
    win_set = win, wr, wc, ch, fg, bg, attr =>

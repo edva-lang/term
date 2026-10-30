@@ -20,13 +20,13 @@
    rgb = r, g, b => color::pack_rgb(r, g, b)
 
    red: Int => Int
-   red = c => color::red(c)
+   red = c => color::red24(c)
 
    green: Int => Int
-   green = c => color::green(c)
+   green = c => color::green24(c)
 
    blue: Int => Int
-   blue = c => color::blue(c)
+   blue = c => color::blue24(c)
 
    blend: Int, Int, Int => Int
    blend = c1, c2, t => color::blend(c1, c2, t)

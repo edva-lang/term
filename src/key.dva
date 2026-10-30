@@ -79,32 +79,32 @@
    // Constructor helpers
    ev_none: () => Event
    ev_none = !=>
-      Event((EV_NONE, KEY_NONE, 0, MOD_NONE, MOUSE_BTN_NONE, 0, 0, 0))
+      Event(EV_NONE, KEY_NONE, 0, MOD_NONE, MOUSE_BTN_NONE, 0, 0, 0)
 
    ev_key: Int, Int, Int => Event
    ev_key = code, ch, mods =>
-      Event((EV_KEY, code, ch, mods, MOUSE_BTN_NONE, 0, 0, 0))
+      Event(EV_KEY, code, ch, mods, MOUSE_BTN_NONE, 0, 0, 0)
 
    ev_char: Int => Event
    ev_char = c =>
-      Event((EV_KEY, KEY_CHAR, c, MOD_NONE, MOUSE_BTN_NONE, 0, 0, 0))
+      Event(EV_KEY, KEY_CHAR, c, MOD_NONE, MOUSE_BTN_NONE, 0, 0, 0)
 
    ev_code: Int => Event
    ev_code = code =>
-      Event((EV_KEY, code, 0, MOD_NONE, MOUSE_BTN_NONE, 0, 0, 0))
+      Event(EV_KEY, code, 0, MOD_NONE, MOUSE_BTN_NONE, 0, 0, 0)
 
    ev_ctrl: Int => Event
    ev_ctrl = c =>
-      Event((EV_KEY, KEY_CTRL, c, MOD_CTRL, MOUSE_BTN_NONE, 0, 0, 0))
+      Event(EV_KEY, KEY_CTRL, c, MOD_CTRL, MOUSE_BTN_NONE, 0, 0, 0)
 
    ev_mouse: Int, Int, Int, Int, Int => Event
    ev_mouse = act, btn, mods, x, y =>
-      Event((EV_MOUSE, 0, 0, mods, btn, act, x, y))
+      Event(EV_MOUSE, 0, 0, mods, btn, act, x, y)
 
    ev_resize: Int, Int => Event
    ev_resize = rows, cols =>
-      Event((EV_RESIZE, 0, 0, MOD_NONE, MOUSE_BTN_NONE, 0, cols, rows))
+      Event(EV_RESIZE, 0, 0, MOD_NONE, MOUSE_BTN_NONE, 0, cols, rows)
 
    ev_theme: Int, Int => Event
    ev_theme = scheme, bg_rgb =>
-      Event((EV_THEME, scheme, bg_rgb, MOD_NONE, MOUSE_BTN_NONE, 0, 0, 0))
+      Event(EV_THEME, scheme, bg_rgb, MOD_NONE, MOUSE_BTN_NONE, 0, 0, 0)

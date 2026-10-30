@@ -186,7 +186,7 @@
       c = sz(1)
       front = grid::new(r, c)
       back = grid::new(r, c)
-      Term((&orig_t, &raw_t, <->, <->, <+>, style::COLOR_DEFAULT, r, c, front, back))
+      Term(&orig_t, &raw_t, <->, <->, <+>, style::COLOR_DEFAULT, r, c, front, back)
 
    // Query terminal color scheme (CSI ? 996 n + OSC 11) and update t.is_dark / t.bg_color
    detect_theme: Term => <>
