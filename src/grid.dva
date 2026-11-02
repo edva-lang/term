@@ -47,12 +47,12 @@
 
    set: Grid, Int, Int, Int, Int, Int, Int => ()
    set = g, row, col, ch, fg, bg, attr =>
-      row < 0 || row !< g.rows || col < 0 || col !< g.cols | --|
+      row ![0..g.rows] || col ![0..g.cols] | --|
       g.cells(row * g.cols + col) = Cell(u32(ch), i32(fg), i32(bg), u32(attr))
 
    get: Grid, Int, Int => (Int, Int, Int, Int)
    get = g, row, col =>
-      row < 0 || row !< g.rows || col < 0 || col !< g.cols | --| (32, -1, -1, 0)
+      row ![0..g.rows] || col ![0..g.cols] | --| (32, -1, -1, 0)
       c = g.cells(row * g.cols + col)!!
       (Int(c.ch), Int(c.fg), Int(c.bg), Int(c.attr))
 
@@ -72,7 +72,7 @@
    // Write string into grid
    put_str: Grid, Int, Int, String, Int, Int, Int => ()
    put_str = g, row, col, text, fg, bg, attr =>
-      row < 0 || row !< g.rows | --|
+      row ![0..g.rows] | --|
       c' = col
       text @@ r =>
          c' !< g.cols | -->
@@ -84,7 +84,7 @@
    // Write string clipped to maximum visible width
    put_str_clipped: Grid, Int, Int, String, Int, Int, Int, Int => ()
    put_str_clipped = g, row, col, text, max_w, fg, bg, attr =>
-      row < 0 || row !< g.rows || max_w !> 0 | --|
+      row ![0..g.rows] || max_w !> 0 | --|
       c' = col
       written' = 0
       text @@ r =>
@@ -256,7 +256,7 @@
 
    win_set: Window, Int, Int, Int, Int, Int, Int => ()
    win_set = win, wr, wc, ch, fg, bg, attr =>
-      wr < 0 || wr !< win.h || wc < 0 || wc !< win.w | --|
+      wr ![0..win.h] || wc ![0..win.w] | --|
       set(win.grid, win.r + wr, win.c + wc, ch, fg, bg, attr)
 
    win_fill_rect: Window, Int, Int, Int, Int, Int, Int, Int, Int => ()
@@ -267,7 +267,7 @@
 
    win_put_str: Window, Int, Int, String, Int, Int, Int => ()
    win_put_str = win, wr, wc, text, fg, bg, attr =>
-      wr < 0 || wr !< win.h | --|
+      wr ![0..win.h] | --|
       avail = win.w - wc
       avail !> 0 | --|
       put_str_clipped(win.grid, win.r + wr, win.c + wc, text, avail, fg, bg, attr)

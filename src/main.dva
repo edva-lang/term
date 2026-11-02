@@ -196,14 +196,14 @@ draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick', pal_idx', cur_s
       my = ev.y - 1
       ev.mouse_act == term::MOUSE_PRESS |
          mouse_msg' = ++("Mouse Pressed: Button " + str::from_int(ev.mouse_btn) + " at (" + str::from_int(ev.x) + ", " + str::from_int(ev.y) + ")")
-         my !< PAD_R && my !> (PAD_R + PAD_H - 1) && mx !< PAD_C && mx !> (PAD_C + PAD_W - 1) |
+         my [PAD_R..PAD_R + PAD_H] && mx [PAD_C..PAD_C + PAD_W] |
             target_r = my < PAD_MIN_R | PAD_MIN_R | (my > PAD_MAX_R | PAD_MAX_R | my)
             target_c = mx < PAD_MIN_C | PAD_MIN_C | (mx > PAD_MAX_C | PAD_MAX_C | mx)
             cursor_r' = target_r
             cursor_c' = target_c
       ev.mouse_act == term::MOUSE_DRAG |
          mouse_msg' = ++("Mouse Dragged to (" + str::from_int(ev.x) + ", " + str::from_int(ev.y) + ")")
-         my !< PAD_R && my !> (PAD_R + PAD_H - 1) && mx !< PAD_C && mx !> (PAD_C + PAD_W - 1) |
+         my [PAD_R..PAD_R + PAD_H] && mx [PAD_C..PAD_C + PAD_W] |
             target_r = my < PAD_MIN_R | PAD_MIN_R | (my > PAD_MAX_R | PAD_MAX_R | my)
             target_c = mx < PAD_MIN_C | PAD_MIN_C | (mx > PAD_MAX_C | PAD_MAX_C | mx)
             cursor_r' = target_r

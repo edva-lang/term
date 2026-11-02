@@ -31,7 +31,7 @@
          opt = read_byte_opt(50)
          opt
             | b =>
-               b !< 48 && b !> 57
+               b [48...57]
                   |
                      num' = num' * 10 + (b - 48)
                   |
@@ -43,12 +43,12 @@
    // Drain remaining bytes of an unhandled CSI sequence up to final byte (0x40..0x7E)
    drain_csi_tail: Int => ()
    drain_csi_tail = last_b =>
-      last_b !< 0x40 && last_b !> 0x7E | --|
+      last_b [0x40...0x7E] | --|
       32 @ i =>
          opt = read_byte_opt(20)
          opt
             | b =>
-               b !< 0x40 && b !> 0x7E | -->
+               b [0x40...0x7E] | -->
             | -->
 
    // Parse private CSI sequence: \e[?... (e.g. \e[?997;1n or \e[?997;2n from Mode 2031 / ?996n)
@@ -57,7 +57,7 @@
       q_opt = read_byte_opt(50)
       q_opt
          | qb =>
-            qb !< '0' && qb !> '9'
+            qb ['0'...'9']
                |
                   d = parse_decimal(qb)
                   num = d.0
@@ -67,7 +67,7 @@
                         s_opt = read_byte_opt(50)
                         s_opt
                            | sb =>
-                              sb !< '0' && sb !> '9'
+                              sb ['0'...'9']
                                  |
                                     ds = parse_decimal(sb)
                                     ds.1 == 'n'
@@ -222,44 +222,42 @@
          | key::ev_none!
 
    decode_csi_letter: Int => key::Event
-   decode_csi_letter = b2 =>
-      b2
-         ['A'] key::ev_code(key::KEY_UP)
-         ['B'] key::ev_code(key::KEY_DOWN)
-         ['C'] key::ev_code(key::KEY_RIGHT)
-         ['D'] key::ev_code(key::KEY_LEFT)
-         ['H'] key::ev_code(key::KEY_HOME)
-         ['F'] key::ev_code(key::KEY_END)
-         ['Z'] key::ev_key(key::KEY_BACKTAB, 0, key::MOD_SHIFT)
-         ['P', 'p'] key::ev_code(key::KEY_F1)
-         ['Q', 'q'] key::ev_code(key::KEY_F2)
-         ['R', 'r'] key::ev_code(key::KEY_F3)
-         ['S', 's'] key::ev_code(key::KEY_F4)
-         | key::ev_none!
+   decode_csi_letter =
+      ['A'] key::ev_code(key::KEY_UP)
+      ['B'] key::ev_code(key::KEY_DOWN)
+      ['C'] key::ev_code(key::KEY_RIGHT)
+      ['D'] key::ev_code(key::KEY_LEFT)
+      ['H'] key::ev_code(key::KEY_HOME)
+      ['F'] key::ev_code(key::KEY_END)
+      ['Z'] key::ev_key(key::KEY_BACKTAB, 0, key::MOD_SHIFT)
+      ['P', 'p'] key::ev_code(key::KEY_F1)
+      ['Q', 'q'] key::ev_code(key::KEY_F2)
+      ['R', 'r'] key::ev_code(key::KEY_F3)
+      ['S', 's'] key::ev_code(key::KEY_F4)
+      | key::ev_none!
 
    decode_csi_num_key: Int => Int
-   decode_csi_num_key = num =>
-      num
-         [27] key::KEY_ESC
-         [1, 57382] key::KEY_HOME
-         [2, 57362] key::KEY_INSERT
-         [3, 57363] key::KEY_DELETE
-         [4, 57383] key::KEY_END
-         [5, 57380] key::KEY_PAGE_UP
-         [6, 57381] key::KEY_PAGE_DOWN
-         [11, 28, 57364] key::KEY_F1
-         [12, 29, 57365] key::KEY_F2
-         [13, 31, 57366] key::KEY_F3
-         [14, 32, 57367] key::KEY_F4
-         [15, 33, 57368] key::KEY_F5
-         [17, 34, 57369] key::KEY_F6
-         [18, 57370] key::KEY_F7
-         [19, 57371] key::KEY_F8
-         [20, 57372] key::KEY_F9
-         [21, 57373] key::KEY_F10
-         [23, 57374] key::KEY_F11
-         [24, 57375] key::KEY_F12
-         | key::KEY_NONE
+   decode_csi_num_key =
+      [27] key::KEY_ESC
+      [1, 0xE026] key::KEY_HOME
+      [2, 0xE012] key::KEY_INSERT
+      [3, 0xE013] key::KEY_DELETE
+      [4, 0xE027] key::KEY_END
+      [5, 0xE024] key::KEY_PAGE_UP
+      [6, 0xE025] key::KEY_PAGE_DOWN
+      [11, 28, 0xE014] key::KEY_F1
+      [12, 29, 0xE015] key::KEY_F2
+      [13, 31, 0xE016] key::KEY_F3
+      [14, 32, 0xE017] key::KEY_F4
+      [15, 33, 0xE018] key::KEY_F5
+      [17, 34, 0xE019] key::KEY_F6
+      [18, 0xE01A] key::KEY_F7
+      [19, 0xE01B] key::KEY_F8
+      [20, 0xE01C] key::KEY_F9
+      [21, 0xE01D] key::KEY_F10
+      [23, 0xE01E] key::KEY_F11
+      [24, 0xE01F] key::KEY_F12
+      | key::KEY_NONE
 
    decode_fkey: Int => key::Event
    decode_fkey = fb =>
@@ -268,7 +266,7 @@
          ['Q', 'q'] key::ev_code(key::KEY_F2)
          ['R', 'r'] key::ev_code(key::KEY_F3)
          ['S', 's'] key::ev_code(key::KEY_F4)
-         [(_ !< '0' && _ !> '9')]
+         ['0'...'9']
             d = parse_decimal(fb)
             term_c = d.1
             term_c
@@ -316,7 +314,7 @@
                |
                   csi_ev = decode_csi_letter(b2)
                   csi_ev.code != key::KEY_NONE | --| csi_ev
-                  b2 !< '0' && b2 !> '9' |
+                  b2 ['0'...'9'] |
                      d = parse_decimal(b2)
                      num = d.0
                      term_c = d.1
@@ -330,7 +328,7 @@
                               [13] key::ev_code(key::KEY_ENTER)
                               [9] key::ev_code(key::KEY_TAB)
                               [8, 127] key::ev_code(key::KEY_BACKSPACE)
-                              [(_ !< 57344)]
+                              [57344..]
                                  k_code = decode_csi_num_key(num)
                                  k_code != key::KEY_NONE | key::ev_code(k_code) | key::ev_char(num)
                               | key::ev_char(num)
@@ -360,10 +358,10 @@
                                           [9] key::ev_key(key::KEY_TAB, 0, mods)
                                           [27] key::ev_key(key::KEY_ESC, 0, mods)
                                           [8, 127] key::ev_key(key::KEY_BACKSPACE, 0, mods)
-                                          [(_ !< 57344)]
+                                          [57344..]
                                              k_code = decode_csi_num_key(num)
                                              k_code != key::KEY_NONE | key::ev_key(k_code, 0, mods) | key::ev_char(num)
-                                          [(_ !< 1 && _ !> 9)]
+                                          [1...9]
                                              mods == key::MOD_CTRL | key::ev_ctrl(num + 48) | key::ev_char(num)
                                           | (mods == key::MOD_CTRL | key::ev_ctrl(num) | key::ev_char(num))
                                     ['P', 'p'] key::ev_key(key::KEY_F1, 0, mods)
@@ -384,7 +382,7 @@
                                                       [27] key::ev_key(key::KEY_ESC, 0, mods)
                                                       [8] (mods == key::MOD_CTRL | key::ev_ctrl('h') | key::ev_key(key::KEY_BACKSPACE, 0, mods))
                                                       [127] key::ev_key(key::KEY_BACKSPACE, 0, mods)
-                                                      [(_ !< 1 && _ !> 9)]
+                                                      [1...9]
                                                          mods == key::MOD_CTRL | key::ev_ctrl(code_val + 48) | key::ev_char(code_val)
                                                       | (mods == key::MOD_CTRL | key::ev_ctrl(code_val) | key::ev_char(code_val))
                                                 | key::ev_none!
@@ -464,7 +462,7 @@
                [29] key::ev_ctrl('5')
                [30] key::ev_ctrl('6')
                [31] key::ev_ctrl('7')
-               [(_ !< 1 && _ !> 26)] key::ev_ctrl(b0 + 96)
+               [1...26] key::ev_ctrl(b0 + 96)
                [> 127] decode_utf8_char(b0)
                | key::ev_char(b0)
          | key::ev_none!
