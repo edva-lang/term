@@ -1,7 +1,7 @@
 // term/src/main.dva — Rich interactive demonstration of term features
 
 #use io
-#use term
+#use ./term
 #use str
 #use utf
 
@@ -152,23 +152,23 @@ draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick', pal_idx', cur_s
 
    ev.kind == term::EV_KEY |
       ev.code == term::KEY_CHAR |
-         ev.ch == 'q' | -->
-         ev.ch == 'p' |
+         ev.ch == 'q | -->
+         ev.ch == 'p |
             pal_idx' = pal_idx' + 1
             draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick', pal_idx', cur_shape_idx', last_input_str', last_input_cp')
-         ev.ch == 'c' |
+         ev.ch == 'c |
             cur_shape_idx' = cur_shape_idx' + 1
             draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick', pal_idx', cur_shape_idx', last_input_str', last_input_cp')
-         ev.ch == 'h' && cursor_c' > PAD_MIN_C |
+         ev.ch == 'h && cursor_c' > PAD_MIN_C |
             cursor_c' = cursor_c' - 1
             draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick', pal_idx', cur_shape_idx', last_input_str', last_input_cp')
-         ev.ch == 'l' && cursor_c' < PAD_MAX_C |
+         ev.ch == 'l && cursor_c' < PAD_MAX_C |
             cursor_c' = cursor_c' + 1
             draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick', pal_idx', cur_shape_idx', last_input_str', last_input_cp')
-         ev.ch == 'k' && cursor_r' > PAD_MIN_R |
+         ev.ch == 'k && cursor_r' > PAD_MIN_R |
             cursor_r' = cursor_r' - 1
             draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick', pal_idx', cur_shape_idx', last_input_str', last_input_cp')
-         ev.ch == 'j' && cursor_r' < PAD_MAX_R |
+         ev.ch == 'j && cursor_r' < PAD_MAX_R |
             cursor_r' = cursor_r' + 1
             draw_ui(t, cursor_r', cursor_c', status_msg', mouse_msg', tick', pal_idx', cur_shape_idx', last_input_str', last_input_cp')
          |

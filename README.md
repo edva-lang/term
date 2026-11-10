@@ -45,7 +45,7 @@ main = !=>
    0.. @
       // Clear back buffer and draw UI
       term::clear(t)
-      term::fill_rect(t, 0, 0, t.rows, t.cols, ' ', pal.fg, pal.bg, term::ATTR_NONE)
+      term::fill_rect(t, 0, 0, t.rows, t.cols, '\s, pal.fg, pal.bg, term::ATTR_NONE)
       term::draw_titled_box(
          t, 1, 2, t.rows - 2, t.cols - 4,
          term::BORDER_ROUNDED, " Edva Terminal ",
@@ -61,7 +61,7 @@ main = !=>
 
       // Poll keyboard, mouse, resize, and live theme events (50ms timeout)
       ev = term::poll_event(t, 50)
-      ev.kind == term::EV_KEY && (ev.code == term::KEY_ESC || ev.ch == 'q') | -->
+      ev.kind == term::EV_KEY && (ev.code == term::KEY_ESC || ev.ch == 'q) | -->
 
    term::shutdown(t)
    0

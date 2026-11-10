@@ -1,7 +1,16 @@
 // term/src/raw.dva — POSIX tty raw mode, terminal dimensions, and ANSI modes
 
+#use base64
 #use libc
 #use str
+
+#private
+   #type WinSize #packed (
+      ws_row:    u16,
+      ws_col:    u16,
+      ws_xpixel: u16,
+      ws_ypixel: u16
+   )
 
 #public
    // Escape character (ASCII 27)
@@ -17,14 +26,13 @@
    // Query terminal rows and columns via TIOCGWINSZ ioctl (0x5413)
    get_size: () => (Int, Int)
    get_size = !=>
-      buf = {8}
-      p = &buf
-      res = libc::ioctl(1, 0x5413, Int(p))
+      ws = WinSize(0u16, 0u16, 0u16, 0u16)
+      res = libc::ioctl(1, 0x5413, Int(&ws))
       res != 0
          | (24, 80)
          |
-            row = Int(@[p u16])
-            col = Int(@[p + 2 u16])
+            row = Int(ws.ws_row)
+            col = Int(ws.ws_col)
             r = row < 1 | 24 | row
             c = col < 1 | 80 | col
             (r, c)
@@ -141,34 +149,5 @@
    // Copy text to system clipboard via OSC 52
    copy_to_clipboard: String => ()
    copy_to_clipboard = text =>
-      b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-      n = ?text
-      n == 0 | --|
-      out = {((n + 2) / 3) * 4 + 16}
-      out += "\e]52;c;"
-      i' = 0
-      n / 3 @ chunk_idx =>
-         b0 = text(i')
-         b1 = text(i' + 1)
-         b2 = text(i' + 2)
-         i' = i' + 3
-         out += b64(b0 .>. 2)
-         out += b64(((b0 .&. 3) .<. 4) .|. (b1 .>. 4))
-         out += b64(((b1 .&. 15) .<. 2) .|. (b2 .>. 6))
-         out += b64(b2 .&. 63)
-      rem = n - i'
-      rem == 1 |
-         b0 = text(i')
-         out += b64(b0 .>. 2)
-         out += b64((b0 .&. 3) .<. 4)
-         out += '='
-         out += '='
-      rem == 2 |
-         b0 = text(i')
-         b1 = text(i' + 1)
-         out += b64(b0 .>. 2)
-         out += b64(((b0 .&. 3) .<. 4) .|. (b1 .>. 4))
-         out += b64((b1 .&. 15) .<. 2)
-         out += '='
-      out += "\a"
-      write_raw(+out)
+      ?text == 0 | --|
+      write_raw("\e]52;c;" + base64::encode(text, base64::Flavor(Std)) + "\a")

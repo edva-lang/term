@@ -2,8 +2,8 @@
 
 #use utf
 #use str
-#use "style"
-#use "raw"
+#use ./style
+#use ./raw
 
 #public
    #type Cell #packed (

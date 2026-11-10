@@ -1,7 +1,7 @@
 // term/src/style.dva — Colors, attributes, palettes, and border styles
 
 #use color
-#use "color/palette"
+#use color/palette
 
 #public
    // --- Text Attribute Bitmask ---

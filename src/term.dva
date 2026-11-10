@@ -1,11 +1,11 @@
 // term/src/term.dva — High-performance, zero-flicker Edva terminal library
 
 #use str
-#use "key"
-#use "style"
-#use "raw"
-#use "grid"
-#use "input"
+#use ./key
+#use ./style
+#use ./raw
+#use ./grid
+#use ./input
 
 #public
    // --- Re-exports from submodules ---
